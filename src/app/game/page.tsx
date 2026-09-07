@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { Gamepad2, RotateCcw, Hand, Volume2 } from "lucide-react";
 import { classifyGesture } from "@/lib/word-gesture-map";
@@ -57,7 +57,9 @@ export default function GamePage() {
     }
   }, []);
 
-  // Classify gesture from analysis
+  const lastAutoRecordRef = useRef("");
+
+  // Classify gesture from analysis AND auto-record
   useEffect(() => {
     if (analysis) {
       const gesture = classifyGesture(
@@ -66,6 +68,18 @@ export default function GamePage() {
         analysis.fistRatio
       );
       setDetectedGesture(gesture);
+
+      // Auto-record when gesture is detected with high confidence and is stable
+      if (gesture && analysis.confidence > 0.7 && gesture !== lastAutoRecordRef.current) {
+        lastAutoRecordRef.current = gesture;
+        const meaning = GESTURE_MAP[gesture]?.meaning || gesture;
+        recordGesture(gesture, meaning);
+        const entry: GestureHistoryEntry = { gesture, meaning, timestamp: Date.now() };
+        setHistory((prev) => [entry, ...prev].slice(0, 100));
+        setTotalDetected((p) => p + 1);
+        // Cooldown: don't re-record same gesture for 2 seconds
+        setTimeout(() => { lastAutoRecordRef.current = ""; }, 2000);
+      }
     } else {
       setDetectedGesture("");
     }
@@ -165,21 +179,12 @@ export default function GamePage() {
                       aria-live="polite"
                       aria-label={`Detected gesture: ${GESTURE_MAP[detectedGesture]?.meaning || "Unknown"}`}
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className="text-3xl" aria-hidden="true">{GESTURE_MAP[detectedGesture]?.emoji || "❓"}</span>
-                          <div>
-                            <p className="text-white font-bold">{GESTURE_MAP[detectedGesture]?.meaning || "Unknown"}</p>
-                            <p className="text-gray-300 text-sm">Confidence: {((analysis?.confidence || 0) * 100).toFixed(0)}%</p>
-                          </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-3xl" aria-hidden="true">{GESTURE_MAP[detectedGesture]?.emoji || "❓"}</span>
+                        <div>
+                          <p className="text-white font-bold">{GESTURE_MAP[detectedGesture]?.meaning || "Unknown"}</p>
+                          <p className="text-gray-300 text-sm">Auto-recorded • Confidence: {((analysis?.confidence || 0) * 100).toFixed(0)}%</p>
                         </div>
-                        <button
-                          onClick={recordGestureAction}
-                          className="px-4 py-2 bg-violet-600 text-white text-sm font-bold rounded-lg hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2 focus:ring-offset-gray-900"
-                          aria-label={`Record ${GESTURE_MAP[detectedGesture]?.meaning || "gesture"}`}
-                        >
-                          Record
-                        </button>
                       </div>
                     </div>
                   )}

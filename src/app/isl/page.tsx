@@ -108,12 +108,49 @@ export default function ISLPage() {
   const currentAlphabet = alphabetItems[selectedIndex] || null;
   const currentWord = wordItems[selectedIndex] || null;
 
+  const autoSubmitCooldownRef = useRef(false);
+
   // Reset on tab/section change
   useEffect(() => {
     setSelectedIndex(0);
     setCheckResult(null);
     motionTrackerRef.current.reset();
   }, [activeTab, alphabetSection, selectedCategory]);
+
+  // ===== CONTINUOUS AUTO-DETECTION for ISL =====
+  useEffect(() => {
+    if (!cameraActive || !currentAnalysis || !handDetected || autoSubmitCooldownRef.current) return;
+    if (checkResult && checkResult.isCorrect) return;
+
+    const currentItem = activeTab === "alphabet" ? currentAlphabet : currentWord;
+    if (!currentItem) return;
+
+    let gestureScore = 0;
+
+    if (activeTab === "alphabet" && currentAlphabet) {
+      const pattern = currentAlphabet[1] as ISLPattern;
+      const result = checkISLLetter(currentAnalysis, currentAlphabet[0]);
+      gestureScore = result.score;
+    } else if (activeTab === "words" && currentWord) {
+      const f = currentAnalysis.fingers;
+      const expected = currentWord.fingers;
+      let correct = 0;
+      const fingerNames: (keyof typeof f)[] = ["thumb", "index", "middle", "ring", "pinky"];
+      for (const fn of fingerNames) {
+        if (f[fn] === expected[fn]) correct++;
+      }
+      gestureScore = Math.round((correct / 5) * 100);
+    }
+
+    // Auto-check when gesture is confident enough
+    if (gestureScore >= 70 && !autoSubmitCooldownRef.current) {
+      autoSubmitCooldownRef.current = true;
+      setTimeout(() => {
+        checkMySign();
+        setTimeout(() => { autoSubmitCooldownRef.current = false; }, 3000);
+      }, 300);
+    }
+  }, [currentAnalysis, handDetected, cameraActive, activeTab, currentAlphabet, currentWord, checkResult]);
 
   // Check sign
   const checkMySign = useCallback(() => {
@@ -408,30 +445,20 @@ export default function ISLPage() {
               ) : null}
             </div>
 
-            {/* Check My Sign */}
-            {cameraActive && (
-              <button
-                onClick={checkMySign}
-                disabled={!handDetected || isChecking}
-                className={`w-full py-3.5 rounded-xl font-bold text-white shadow-lg transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
-                  checkResult?.isCorrect
-                    ? "bg-gradient-to-r from-emerald-500 to-green-600 shadow-emerald-500/25"
-                    : "bg-gradient-to-r from-orange-500 to-amber-600 shadow-orange-500/25 hover:from-orange-600 hover:to-amber-700"
-                }`}
-              >
-                {isChecking ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : checkResult?.isCorrect ? (
-                  <Check className="w-5 h-5" />
+            {/* Live Auto-Detection Status */}
+            {cameraActive && !checkResult?.isCorrect && (
+              <div className="space-y-2">
+                {handDetected ? (
+                  <div className="px-4 py-3 rounded-xl text-sm font-medium bg-amber-900/50 text-amber-300 border border-amber-700/50 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+                    Watching for your ISL sign...
+                  </div>
                 ) : (
-                  <span className="text-lg">🇮🇳</span>
+                  <div className="px-4 py-3 rounded-xl text-sm font-medium bg-gray-800 text-gray-400 flex items-center gap-2">
+                    Show your hand to the camera
+                  </div>
                 )}
-                {isChecking
-                  ? "Analyzing..."
-                  : checkResult?.isCorrect
-                    ? "Correct! Check Again?"
-                    : "Check My ISL Sign"}
-              </button>
+              </div>
             )}
 
             {/* AI Feedback */}
