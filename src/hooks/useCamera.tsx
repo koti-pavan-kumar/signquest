@@ -259,6 +259,19 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
 
       setStatus("ready");
       console.log("[useCamera] Camera ready!");
+
+      // Start detection loop — sends each frame to MediaPipe
+      const detect = async () => {
+        if (video.readyState >= 2 && mpHandsRef.current) {
+          try {
+            await mpHandsRef.current.send({ image: video });
+          } catch (e) {
+            // MediaPipe processing error — skip frame
+          }
+        }
+        animRef.current = requestAnimationFrame(detect);
+      };
+      detect();
     } catch (err: any) {
       console.error("[useCamera] Unexpected error:", err);
       setStatus("error");
