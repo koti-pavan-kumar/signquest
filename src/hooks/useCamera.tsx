@@ -20,11 +20,22 @@ export interface UseCameraOptions {
   height?: number;
 }
 
+export interface MultiHandAnalysis {
+  /** Analysis for each detected hand */
+  hands: GestureAnalysis[];
+  /** Number of hands currently visible */
+  handCount: number;
+  /** Combined finger state (merged from both hands) */
+  combinedFingers: GestureAnalysis["fingers"] | null;
+}
+
 export interface UseCameraReturn {
   status: CameraStatus;
   errorMessage: string;
   handDetected: boolean;
+  handCount: number;
   analysis: GestureAnalysis | null;
+  multiHand: MultiHandAnalysis;
   videoReady: boolean;
   startCamera: () => Promise<void>;
   stopCamera: () => void;
@@ -62,7 +73,9 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
   const [status, setStatus] = useState<CameraStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [handDetected, setHandDetected] = useState(false);
+  const [handCount, setHandCount] = useState(0);
   const [analysis, setAnalysis] = useState<GestureAnalysis | null>(null);
+  const [multiHand, setMultiHand] = useState<MultiHandAnalysis>({ hands: [], handCount: 0, combinedFingers: null });
   const [videoReady, setVideoReady] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -85,7 +98,7 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
       });
 
       hands.setOptions({
-        maxNumHands: 1,
+        maxNumHands: 2,
         modelComplexity: 1,
         minDetectionConfidence: 0.5,
         minTrackingConfidence: 0.4,
@@ -106,49 +119,82 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
               // Video frame not ready yet
             }
 
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-              const landmarks = results.multiHandLandmarks[0];
+            const allHands = results.multiHandLandmarks || [];
+            const handAnalyses: GestureAnalysis[] = [];
+
+            if (allHands.length > 0) {
               setHandDetected(true);
+              setHandCount(allHands.length);
 
-              // Draw landmarks
-              ctx.fillStyle = "#22c55e";
-              for (const lm of landmarks) {
-                ctx.beginPath();
-                ctx.arc(
-                  lm.x * canvasRef.current.width,
-                  lm.y * canvasRef.current.height,
-                  4, 0, 2 * Math.PI
-                );
-                ctx.fill();
-              }
+              const handColors = ["#22c55e", "#f59e0b"];
 
-              // Draw connections
               const connections = [
                 [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
                 [0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],
                 [0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17],
               ];
-              ctx.strokeStyle = "#22c55e";
-              ctx.lineWidth = 2;
-              for (const [a, b] of connections) {
-                ctx.beginPath();
-                ctx.moveTo(
-                  landmarks[a].x * canvasRef.current.width,
-                  landmarks[a].y * canvasRef.current.height
+
+              const cw = canvasRef.current!.width;
+              const ch = canvasRef.current!.height;
+
+              allHands.forEach((landmarks: any, handIdx: number) => {
+                const color = handColors[handIdx % handColors.length];
+
+                // Draw landmarks for each hand
+                ctx.fillStyle = color;
+                for (const lm of landmarks) {
+                  ctx.beginPath();
+                  ctx.arc(lm.x * cw, lm.y * ch, 4, 0, 2 * Math.PI);
+                  ctx.fill();
+                }
+
+                // Draw connections
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                for (const [a, b] of connections) {
+                  ctx.beginPath();
+                  ctx.moveTo(landmarks[a].x * cw, landmarks[a].y * ch);
+                  ctx.lineTo(landmarks[b].x * cw, landmarks[b].y * ch);
+                  ctx.stroke();
+                }
+
+                // Label each hand
+                ctx.fillStyle = color;
+                ctx.font = "bold 14px sans-serif";
+                ctx.fillText(
+                  handIdx === 0 ? "L" : "R",
+                  landmarks[0].x * cw + 10,
+                  landmarks[0].y * ch - 10
                 );
-                ctx.lineTo(
-                  landmarks[b].x * canvasRef.current.width,
-                  landmarks[b].y * canvasRef.current.height
-                );
-                ctx.stroke();
+
+                handAnalyses.push(analyzeGesture(landmarks as Landmark[]));
+              });
+
+              // Primary hand analysis (first detected)
+              setAnalysis(handAnalyses[0]);
+
+              // Combined analysis for two-hand signs
+              let combinedFingers: GestureAnalysis["fingers"] | null = null;
+              if (handAnalyses.length === 2) {
+                combinedFingers = {
+                  thumb: handAnalyses[0].fingers.thumb || handAnalyses[1].fingers.thumb,
+                  index: handAnalyses[0].fingers.index || handAnalyses[1].fingers.index,
+                  middle: handAnalyses[0].fingers.middle || handAnalyses[1].fingers.middle,
+                  ring: handAnalyses[0].fingers.ring || handAnalyses[1].fingers.ring,
+                  pinky: handAnalyses[0].fingers.pinky || handAnalyses[1].fingers.pinky,
+                };
               }
 
-              // Analyze gesture
-              const gestureAnalysis = analyzeGesture(landmarks as Landmark[]);
-              setAnalysis(gestureAnalysis);
+              setMultiHand({
+                hands: handAnalyses,
+                handCount: allHands.length,
+                combinedFingers,
+              });
             } else {
               setHandDetected(false);
+              setHandCount(0);
               setAnalysis(null);
+              setMultiHand({ hands: [], handCount: 0, combinedFingers: null });
             }
           }
         }
@@ -295,7 +341,9 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
     }
     setStatus("idle");
     setHandDetected(false);
+    setHandCount(0);
     setAnalysis(null);
+    setMultiHand({ hands: [], handCount: 0, combinedFingers: null });
   }, []);
 
   // Cleanup on unmount
@@ -312,7 +360,9 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
     status,
     errorMessage,
     handDetected,
+    handCount,
     analysis,
+    multiHand,
     videoReady,
     startCamera,
     stopCamera,
@@ -362,7 +412,7 @@ export function CameraError({
   );
 }
 
-export function CameraStatusBadge({ status, handDetected }: { status: CameraStatus; handDetected: boolean }) {
+export function CameraStatusBadge({ status, handDetected, handCount }: { status: CameraStatus; handDetected: boolean; handCount?: number }) {
   if (status === "idle" || status === "loading" || status === "error" || status === "no-permission") {
     return null;
   }
@@ -378,7 +428,7 @@ export function CameraStatusBadge({ status, handDetected }: { status: CameraStat
       {handDetected ? (
         <>
           <Eye className="w-3 h-3" />
-          Hand detected
+          {handCount && handCount > 1 ? `${handCount} hands detected` : "Hand detected"}
         </>
       ) : (
         <>

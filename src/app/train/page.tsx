@@ -1,12 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   GraduationCap,
-  Check,
-  X,
-  Loader2,
   ChevronRight,
   ChevronLeft,
   Zap,
@@ -15,8 +12,7 @@ import {
   Sparkles,
   Volume2,
 } from "lucide-react";
-import { analyzeGesture, GestureAnalysis, Landmark } from "@/lib/gesture-detection";
-import { checkLetter, ASL_PATTERNS } from "@/lib/asl-patterns";
+import { GestureAnalysis } from "@/lib/gesture-detection";
 import {
   WordEntry,
   SentenceEntry,
@@ -33,7 +29,7 @@ import {
   addXP,
   loadProgress,
 } from "@/lib/persistence";
-import { MotionTracker, validateWithMotion } from "@/lib/motion-tracking";
+import { MotionTracker } from "@/lib/motion-tracking";
 import {
   useCamera,
   CameraLoadingSpinner,
@@ -42,6 +38,7 @@ import {
   StartCameraButton,
   StopCameraButton,
 } from "@/hooks/useCamera";
+import { LiveCoach } from "@/components/LiveCoach";
 
 type TabType = "words" | "sentences";
 
@@ -56,13 +53,7 @@ export default function TrainPage() {
   const [activeTab, setActiveTab] = useState<TabType>("words");
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>("basic");
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [isChecking, setIsChecking] = useState(false);
   const [handDetected, setHandDetected] = useState(false);
-  const [checkResult, setCheckResult] = useState<{
-    score: number;
-    isCorrect: boolean;
-    feedback: string[];
-  } | null>(null);
   const [practicedWords, setPracticedWords] = useState<Set<string>>(() => {
     const saved = loadProgress().learnedWords;
     return new Set(saved);
@@ -82,6 +73,7 @@ export default function TrainPage() {
     status: cameraStatus,
     errorMessage,
     handDetected: cameraHandDetected,
+    handCount: cameraHandCount,
     analysis: cameraAnalysis,
     startCamera: startCameraRaw,
     stopCamera: stopCameraRaw,
@@ -113,128 +105,8 @@ export default function TrainPage() {
   // Reset on tab/difficulty change
   useEffect(() => {
     setSelectedIndex(0);
-    setCheckResult(null);
     motionTrackerRef.current.reset();
   }, [activeTab, selectedDifficulty]);
-
-  // Check sign
-  const checkMySign = useCallback(() => {
-    if (!currentAnalysis || !handDetected) {
-      setCheckResult({
-        score: 0,
-        isCorrect: false,
-        feedback: ["No hand detected! Show your hand to the camera."],
-      });
-      return;
-    }
-
-    setIsChecking(true);
-
-    setTimeout(() => {
-      const motionAnalysis = motionTrackerRef.current.getAnalysis();
-
-      if ("word" in currentItem) {
-        const word = (currentItem as WordEntry).word;
-        const firstLetter = word[0].toUpperCase();
-        const pattern = ASL_PATTERNS[firstLetter];
-
-        if (pattern) {
-          const result = checkLetter(currentAnalysis!, firstLetter);
-
-          const motionResult = validateWithMotion(
-            result.score,
-            result.score >= 70
-              ? [`Good handshape for "${word}"!`]
-              : [...result.feedback, `Try focusing on the letter "${firstLetter}" first.`],
-            motionAnalysis,
-            word
-          );
-
-          setCheckResult({
-            score: motionResult.score,
-            isCorrect: motionResult.isCorrect && motionResult.score >= 70,
-            feedback: motionResult.feedback,
-          });
-
-          if (motionResult.isCorrect && motionResult.score >= 70) {
-            const key = `${selectedDifficulty}-${selectedIndex}`;
-            if ("word" in currentItem) {
-              setPracticedWords((prev) => new Set(prev).add(key));
-              markWordLearned((currentItem as WordEntry).word);
-            } else {
-              setPracticedSentences((prev) => new Set(prev).add(key));
-              markSentencePracticed((currentItem as SentenceEntry).sentence);
-            }
-            const xp = 10 * DIFFICULTY_CONFIG[selectedDifficulty].xpMultiplier;
-            addXP(xp);
-            setSessionXP((prev) => prev + xp);
-          }
-        } else {
-          const f = currentAnalysis!.fingers;
-          // More accurate gesture scoring based on common hand shapes
-          let gestureScore = 40;
-          const extended = [f.thumb, f.index, f.middle, f.ring, f.pinky].filter(Boolean).length;
-          gestureScore = 30 + extended * 8;
-
-          const motionResult = validateWithMotion(
-            gestureScore,
-            gestureScore >= 60
-              ? [`Good hand position! For "${word}", try finger-spelling: ${(currentItem as WordEntry).fingerSpell.join("-")}`]
-              : [`Try the sign again. Hint: ${(currentItem as WordEntry).tips[0]}`],
-            motionAnalysis,
-            word
-          );
-
-          setCheckResult({
-            score: motionResult.score,
-            isCorrect: motionResult.isCorrect && motionResult.score >= 70,
-            feedback: motionResult.feedback,
-          });
-        }
-      } else {
-        // Sentence — requires BOTH hand position AND motion
-        const f = currentAnalysis!.fingers;
-        const extended = [f.thumb, f.index, f.middle, f.ring, f.pinky].filter(Boolean).length;
-        // Base score: hand must be clearly in frame with good shape
-        const handScore = Math.min(70, 20 + extended * 10);
-        // Motion score: sentences require movement
-        const motionScore = motionAnalysis.isMoving
-          ? Math.round(motionAnalysis.confidence * 100)
-          : 0;
-        // Combined: need both hand + motion
-        const combinedScore = Math.round(handScore * 0.4 + motionScore * 0.6);
-        const isCorrect = combinedScore >= 70 && motionAnalysis.isMoving;
-
-        const feedback: string[] = [];
-        if (motionAnalysis.isMoving) {
-          feedback.push(`${motionAnalysis.motionType} motion detected ✓`);
-        } else {
-          feedback.push("No movement detected — sentences need dynamic gestures. Move your hands!");
-        }
-        if (extended < 3) {
-          feedback.push("Show your hand more clearly — fingers should be visible.");
-        }
-
-        setCheckResult({
-          score: combinedScore,
-          isCorrect,
-          feedback,
-        });
-
-        if (isCorrect) {
-          const key = `${selectedDifficulty}-${selectedIndex}`;
-          setPracticedSentences((prev) => new Set(prev).add(key));
-          if ("sentence" in currentItem) {
-            markSentencePracticed((currentItem as SentenceEntry).sentence);
-          }
-          const xp = 15 * DIFFICULTY_CONFIG[selectedDifficulty].xpMultiplier;
-          addXP(xp);
-          setSessionXP((prev) => prev + xp);
-        }
-      }
-      setIsChecking(false);
-    }, 600);
-  }, [currentAnalysis, handDetected, activeTab, currentItem, selectedDifficulty, selectedIndex]);
 
   // Speak
   const speak = useCallback(() => {
@@ -249,14 +121,12 @@ export default function TrainPage() {
   const goNext = () => {
     if (selectedIndex < currentItems.length - 1) {
       setSelectedIndex((prev) => prev + 1);
-      setCheckResult(null);
     }
   };
 
   const goPrev = () => {
     if (selectedIndex > 0) {
       setSelectedIndex((prev) => prev - 1);
-      setCheckResult(null);
     }
   };
 
@@ -351,7 +221,7 @@ export default function TrainPage() {
               )}
 
               {/* Active */}
-              {cameraActive && <CameraStatusBadge status={cameraStatus} handDetected={handDetected} />}
+              {cameraActive && <CameraStatusBadge status={cameraStatus} handDetected={handDetected} handCount={cameraHandCount} />}
             </div>
 
             {/* Controls */}
@@ -370,46 +240,30 @@ export default function TrainPage() {
               </div>
             )}
 
-            {/* Check My Sign */}
-            {cameraActive && (
-              <button
-                onClick={checkMySign}
-                disabled={isChecking}
-                className={`w-full py-3.5 rounded-xl font-bold text-white shadow-lg transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
-                  checkResult?.isCorrect
-                    ? "bg-gradient-to-r from-emerald-500 to-green-600 shadow-emerald-500/25"
-                    : "bg-gradient-to-r from-blue-600 to-indigo-600 shadow-blue-500/25 hover:from-blue-700 hover:to-indigo-700"
-                }`}
-              >
-                {isChecking ? <Loader2 className="w-5 h-5 animate-spin" /> : checkResult?.isCorrect ? <Check className="w-5 h-5" /> : <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
-                {isChecking ? "Analyzing..." : checkResult?.isCorrect ? "Correct! Check Again?" : "Check My Sign"}
-              </button>
+            {/* Live Coaching Mode */}
+            {cameraActive && currentItem && (
+              <LiveCoach
+                currentItem={currentItem}
+                analysis={currentAnalysis}
+                handDetected={handDetected}
+                handCount={cameraHandCount}
+                motionTracker={motionTrackerRef}
+                xpMultiplier={DIFFICULTY_CONFIG[selectedDifficulty].xpMultiplier}
+                onCorrect={() => {
+                  const key = `${selectedDifficulty}-${selectedIndex}`;
+                  if ("word" in currentItem) {
+                    setPracticedWords((prev) => new Set(prev).add(key));
+                    markWordLearned((currentItem as WordEntry).word);
+                  } else {
+                    setPracticedSentences((prev) => new Set(prev).add(key));
+                    markSentencePracticed((currentItem as SentenceEntry).sentence);
+                  }
+                  const xp = 10 * DIFFICULTY_CONFIG[selectedDifficulty].xpMultiplier;
+                  addXP(xp);
+                  setSessionXP((prev) => prev + xp);
+                }}
+              />
             )}
-
-            {/* AI Feedback */}
-            <AnimatePresence>
-              {checkResult && (
-                <motion.div initial={{ opacity: 0, y: 10, height: 0 }} animate={{ opacity: 1, y: 0, height: "auto" }} exit={{ opacity: 0, y: -10, height: 0 }} className={`mt-4 p-4 rounded-xl border ${checkResult.isCorrect ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800" : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"}`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-2xl">{checkResult.isCorrect ? "🎉" : "🤔"}</span>
-                    <div>
-                      <p className={`font-bold ${checkResult.isCorrect ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"}`}>
-                        {checkResult.isCorrect ? "Great job!" : "Not quite right"}
-                      </p>
-                      <p className="text-xs text-gray-500">Score: {checkResult.score}%</p>
-                    </div>
-                  </div>
-                  <ul className="space-y-1">
-                    {checkResult.feedback.map((fb, i) => (
-                      <li key={i} className="text-sm text-gray-600 dark:text-gray-400 flex items-start gap-2">
-                        <span className={checkResult.isCorrect ? "text-emerald-500" : "text-red-500"}>{checkResult.isCorrect ? "✓" : "→"}</span>
-                        {fb}
-                      </li>
-                    ))}
-                  </ul>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
 
           {/* Right: Content Card */}
