@@ -89,59 +89,46 @@ export default function HomePage() {
     <div className="min-h-screen">
       {/* Hero */}
       <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-32 overflow-hidden">
+        {/* Background decorations */}
         <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 via-purple-500/5 to-pink-500/10" />
         <div className="absolute top-20 left-1/4 w-72 h-72 bg-violet-500/20 rounded-full blur-3xl" />
         <div className="absolute bottom-10 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Content — z-index above decorations */}
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-4xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-violet-50 dark:bg-violet-900/30 border border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-300 text-sm font-medium mb-8"
-            >
-              <Sparkles className="w-4 h-4" />
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-violet-50 dark:bg-violet-900/30 border border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-300 text-sm font-medium mb-8">
+              <Sparkles className="w-4 h-4" aria-hidden="true" />
               Built for LUMINIX&apos;26 — Hack2Skills Problem Statement
-            </motion.div>
+            </div>
 
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1, duration: 0.6 }}
-              className="text-4xl sm:text-5xl lg:text-7xl font-extrabold tracking-tight mb-6"
-            >
+            {/* Main Heading */}
+            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold tracking-tight mb-6 text-gray-900 dark:text-white">
               Learn Sign Language
               <br />
               <span className="bg-gradient-to-r from-violet-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
                 Through Play
               </span>
-            </motion.h1>
+            </h1>
 
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.6 }}
-              className="text-lg sm:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-10 text-balance"
-            >
+            {/* Subtitle */}
+            <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-10">
               An AI-powered interactive game that teaches you{" "}
               <span className="font-semibold text-orange-500">ASL</span> and{" "}
               <span className="font-semibold text-orange-500">Indian Sign Language (ISL)</span>{" "}
               through quizzes, challenges, and real-time webcam feedback. No prior knowledge needed.
-            </motion.p>
+            </p>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.6 }}
-              className="flex flex-col sm:flex-row items-center justify-center gap-4"
-            >
+            {/* CTAs */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
                 href="/train"
                 className="flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg shadow-violet-500/25 transition-all hover:shadow-xl active:scale-95 group"
               >
-                <Zap className="w-5 h-5" />
+                <Zap className="w-5 h-5" aria-hidden="true" />
                 Start Training Now
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" aria-hidden="true" />
               </Link>
               <Link
                 href="/isl"
@@ -149,7 +136,7 @@ export default function HomePage() {
               >
                 🇮🇳 Learn ISL
               </Link>
-            </motion.div>
+            </div>
           </div>
         </div>
       </section>
@@ -183,19 +170,14 @@ export default function HomePage() {
       {/* Game Modes */}
       <section className="section-padding">
         <div className="container-custom">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold mb-4">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold mb-4 text-gray-900 dark:text-white">
               Choose Your <span className="bg-gradient-to-r from-violet-400 to-purple-600 bg-clip-text text-transparent">Game Mode</span>
             </h2>
             <p className="text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
               Five ways to learn. Both ASL and ISL. All powered by real-time AI hand detection.
             </p>
-          </motion.div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {gameModes.map((mode, i) => (
@@ -212,7 +194,7 @@ export default function HomePage() {
                     <div
                       className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${mode.color} flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform`}
                     >
-                      <mode.icon className="w-7 h-7 text-white" />
+                      <mode.icon className="w-7 h-7 text-white" aria-hidden="true" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-2">
@@ -228,7 +210,7 @@ export default function HomePage() {
                       </p>
                       <div className="mt-4 flex items-center gap-1 text-sm font-semibold text-violet-600 dark:text-violet-400 group-hover:gap-2 transition-all">
                         Play now
-                        <ArrowRight className="w-4 h-4" />
+                        <ArrowRight className="w-4 h-4" aria-hidden="true" />
                       </div>
                     </div>
                   </div>
@@ -242,19 +224,14 @@ export default function HomePage() {
       {/* Features */}
       <section className="section-padding bg-gray-50 dark:bg-gray-950/50">
         <div className="container-custom">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold mb-4">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold mb-4 text-gray-900 dark:text-white">
               Powered by <span className="bg-gradient-to-r from-violet-400 to-purple-600 bg-clip-text text-transparent">AI</span>
             </h2>
             <p className="text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
               Real computer vision running in your browser. Dual-language support. No server needed.
             </p>
-          </motion.div>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {features.map((f, i) => (
@@ -268,7 +245,7 @@ export default function HomePage() {
                 className="p-6 rounded-2xl bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 text-center"
               >
                 <div className="w-12 h-12 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center mx-auto mb-4">
-                  <f.icon className="w-6 h-6 text-violet-600 dark:text-violet-400" />
+                  <f.icon className="w-6 h-6 text-violet-600 dark:text-violet-400" aria-hidden="true" />
                 </div>
                 <h3 className="font-bold text-gray-900 dark:text-white mb-2">{f.title}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">{f.desc}</p>
@@ -281,16 +258,11 @@ export default function HomePage() {
       {/* How It Works */}
       <section className="section-padding">
         <div className="container-custom">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold mb-4">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold mb-4 text-gray-900 dark:text-white">
               How It <span className="bg-gradient-to-r from-violet-400 to-purple-600 bg-clip-text text-transparent">Works</span>
             </h2>
-          </motion.div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
@@ -321,23 +293,18 @@ export default function HomePage() {
       {/* ISL Highlight Section */}
       <section className="section-padding bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-orange-500/10">
         <div className="container-custom">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
-            <span className="text-5xl mb-4 block">🇮🇳</span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold mb-4">
+          <div className="text-center mb-12">
+            <span className="text-5xl mb-4 block" aria-hidden="true">🇮🇳</span>
+            <h2 className="text-3xl sm:text-4xl font-extrabold mb-4 text-gray-900 dark:text-white">
               <span className="bg-gradient-to-r from-orange-500 to-amber-600 bg-clip-text text-transparent">
                 Indian Sign Language (ISL)
               </span>
             </h2>
-            <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-8">
+            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-8">
               India&apos;s native sign language, used by 18 million deaf and hard-of-hearing Indians.
               Learn Devanagari alphabet, common Hindi signs, and cultural gestures.
             </p>
-          </motion.div>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
             {[
@@ -354,7 +321,7 @@ export default function HomePage() {
                 variants={fadeInUp}
                 className="p-6 rounded-2xl bg-white dark:bg-gray-900/50 border border-orange-200 dark:border-orange-800 text-center"
               >
-                <span className="text-3xl mb-3 block">{item.icon}</span>
+                <span className="text-3xl mb-3 block" aria-hidden="true">{item.icon}</span>
                 <h3 className="font-bold text-gray-900 dark:text-white mb-2">{item.title}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">{item.desc}</p>
               </motion.div>
@@ -367,7 +334,7 @@ export default function HomePage() {
               className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 transition-all active:scale-95"
             >
               🇮🇳 Start Learning ISL
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </Link>
           </div>
         </div>
@@ -376,32 +343,26 @@ export default function HomePage() {
       {/* CTA */}
       <section className="section-padding bg-gradient-to-r from-violet-600 to-purple-600">
         <div className="container-custom text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white mb-6">
-              Ready to Sign? 🤟
-            </h2>
-            <p className="text-lg text-violet-100 max-w-xl mx-auto mb-8">
-              No downloads. No sign-ups. Just open your camera and start learning ASL or ISL in minutes.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link
-                href="/train"
-                className="px-8 py-3.5 bg-white text-violet-700 font-bold rounded-xl shadow-xl hover:bg-violet-50 transition-all active:scale-95"
-              >
-                🎯 Start Training
-              </Link>
-              <Link
-                href="/isl"
-                className="px-8 py-3.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white font-bold rounded-xl shadow-xl hover:from-orange-600 hover:to-amber-700 transition-all active:scale-95"
-              >
-                🇮🇳 Learn ISL
-              </Link>
-            </div>
-          </motion.div>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white mb-6">
+            Ready to Sign? 🤟
+          </h2>
+          <p className="text-lg text-violet-100 max-w-xl mx-auto mb-8">
+            No downloads. No sign-ups. Just open your camera and start learning ASL or ISL in minutes.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link
+              href="/train"
+              className="px-8 py-3.5 bg-white text-violet-700 font-bold rounded-xl shadow-xl hover:bg-violet-50 transition-all active:scale-95"
+            >
+              🎯 Start Training
+            </Link>
+            <Link
+              href="/isl"
+              className="px-8 py-3.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white font-bold rounded-xl shadow-xl hover:from-orange-600 hover:to-amber-700 transition-all active:scale-95"
+            >
+              🇮🇳 Learn ISL
+            </Link>
+          </div>
         </div>
       </section>
     </div>
