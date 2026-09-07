@@ -48,6 +48,7 @@ export type MotionType =
   | "forward"        // Forward/backward (Thank You, Good)
   | "sideways"       // Single lateral sweep (Help, School)
   | "upward"         // Rising motion (Learn, Help)
+  | "nod"            // Vertical oscillation (Yes, Good Morning)
   | "downward"       // Falling motion (Bad)
   | "tap"            // Quick repetitive motion (Water, Time)
   | "trace";         // Complex path (J, Z)
@@ -235,20 +236,32 @@ function countOscillations(
 ): number {
   if (velocities.length < 3) return 0;
 
-  let count = 0;
-  let lastSign = Math.sign(velocities[0].vx);
-
+  // Count HORIZONTAL oscillations
+  let hCount = 0;
+  let hLastSign = Math.sign(velocities[0].vx);
   for (let i = 1; i < velocities.length; i++) {
     const currentSign = Math.sign(velocities[i].vx);
     const magnitude = Math.abs(velocities[i].vx);
-
-    if (currentSign !== lastSign && magnitude > OSCILLATION_THRESHOLD) {
-      count++;
-      lastSign = currentSign;
+    if (currentSign !== hLastSign && magnitude > OSCILLATION_THRESHOLD) {
+      hCount++;
+      hLastSign = currentSign;
     }
   }
 
-  return Math.floor(count / 2); // Each full oscillation is 2 direction changes
+  // Count VERTICAL oscillations (for nodding, brushing up/down)
+  let vCount = 0;
+  let vLastSign = Math.sign(velocities[0].vy);
+  for (let i = 1; i < velocities.length; i++) {
+    const currentSign = Math.sign(velocities[i].vy);
+    const magnitude = Math.abs(velocities[i].vy);
+    if (currentSign !== vLastSign && magnitude > OSCILLATION_THRESHOLD) {
+      vCount++;
+      vLastSign = currentSign;
+    }
+  }
+
+  // Return the MAX of horizontal and vertical oscillations
+  return Math.max(Math.floor(hCount / 2), Math.floor(vCount / 2));
 }
 
 function computeCircularity(
@@ -338,6 +351,33 @@ function classifyMotion(params: MotionParams): {
 
   // Wave — horizontal oscillation (1+ direction changes for gentle waves)
   if (oscillationCount >= 1 && speed > VELOCITY_THRESHOLD * 0.8) {
+    // Check if vertical oscillation dominates → that's a NOD, not a wave
+    let vOscillations = 0;
+    let vLastSign = Math.sign(velocities[0].vy);
+    for (let i = 1; i < velocities.length; i++) {
+      const cs = Math.sign(velocities[i].vy);
+      if (cs !== vLastSign && Math.abs(velocities[i].vy) > OSCILLATION_THRESHOLD) {
+        vOscillations++;
+        vLastSign = cs;
+      }
+    }
+    let hOscillations = 0;
+    let hLastSign = Math.sign(velocities[0].vx);
+    for (let i = 1; i < velocities.length; i++) {
+      const cs = Math.sign(velocities[i].vx);
+      if (cs !== hLastSign && Math.abs(velocities[i].vx) > OSCILLATION_THRESHOLD) {
+        hOscillations++;
+        hLastSign = cs;
+      }
+    }
+
+    if (vOscillations > hOscillations) {
+      // Vertical oscillation = nod (Yes, Good Morning)
+      return {
+        motionType: "nod",
+        confidence: Math.min(1, 0.6 + vOscillations * 0.08),
+      };
+    }
     return {
       motionType: "wave",
       confidence: Math.min(1, 0.6 + oscillationCount * 0.1),
@@ -550,8 +590,8 @@ export const MOTION_SIGNATURES: Record<string, MotionSignature> = {
   },
   Yes: {
     sign: "Yes",
-    expectedMotion: "tap",
-    minConfidence: 0.5,
+    expectedMotion: "nod",
+    minConfidence: 0.3,
     description: "Fist nods up and down",
   },
   Friend: {
@@ -733,40 +773,56 @@ export function validateWithMotion(
   }
 
   // Check if detected motion matches expected
+  // Allow similar motion types (nod≈tap, wave≈sideways, forward≈upward)
+  const SIMILAR_MOTIONS: Record<string, string[]> = {
+    nod: ["tap", "upward", "downward"],
+    tap: ["nod"],
+    wave: ["sideways"],
+    sideways: ["wave"],
+    upward: ["forward", "nod"],
+    downward: ["forward", "nod"],
+    forward: ["upward", "downward"],
+    circle: [],
+    stationary: [],
+  };
+
+  const exactMatch = motionAnalysis.motionType === signature.expectedMotion;
+  const similarMatch = SIMILAR_MOTIONS[signature.expectedMotion]?.includes(motionAnalysis.motionType) || false;
   const motionMatch =
-    motionAnalysis.motionType === signature.expectedMotion ||
+    exactMatch ||
+    similarMatch ||
     (signature.expectedMotion === "stationary" && !motionAnalysis.isMoving);
 
-  // Motion scoring: only give real credit if motion MATCHES
-  // If motion is wrong, score is near zero — you can't pass with wrong motion
+  // Motion scoring: give credit for matching OR any movement at all
   const motionScore = motionMatch
     ? Math.round(motionAnalysis.confidence * 100)
     : motionAnalysis.isMoving
-      ? Math.round(motionAnalysis.confidence * 5)   // Tiny credit for moving at all
+      ? Math.round(motionAnalysis.confidence * 30)   // 30% credit for any movement
       : 0;                                            // Zero credit for stationary
 
-  // Combine scores: 40% static + 60% motion
-  // Motion is the hard part — it matters more
-  const combinedScore = Math.round(staticScore * 0.4 + motionScore * 0.6);
+  // Combine scores: 50% static + 50% motion
+  const combinedScore = Math.round(staticScore * 0.5 + motionScore * 0.5);
 
   const feedback = [...staticFeedback];
 
   // Add motion feedback
-  if (motionMatch) {
+  if (exactMatch) {
     feedback.push(`Motion: ${signature.description} ✓`);
+  } else if (similarMatch && motionAnalysis.isMoving) {
+    feedback.push(`Motion detected — close to "${signature.description}" ✓`);
   } else if (motionAnalysis.isMoving) {
     feedback.push(
       `Wrong motion — expected "${signature.description}" but got ${motionAnalysis.motionType}`
     );
   } else {
     feedback.push(
-      `No movement detected. You MUST move: ${signature.description}`
+      `Try moving: ${signature.description}`
     );
   }
 
-  // STRICT: BOTH static handshape AND motion must be good to pass
-  // No more passing just because the handshape is close
-  const isCorrect = combinedScore >= 70 && motionMatch;
+  // Lenient: need 60%+ combined score
+  // Motion matching gives bonus but isn't strictly required
+  const isCorrect = combinedScore >= 60;
 
   return {
     score: combinedScore,

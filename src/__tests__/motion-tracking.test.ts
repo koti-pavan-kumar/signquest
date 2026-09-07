@@ -234,8 +234,8 @@ describe("validateWithMotion", () => {
     );
     expect(result.score).toBeLessThan(80);
     expect(result.isCorrect).toBe(false);
-    // Should mention the correct motion
-    expect(result.feedback.some((f) => f.includes("MUST move") || f.includes("wave"))).toBe(true);
+    // Should mention the expected motion
+    expect(result.feedback.some((f) => f.includes("wave") || f.includes("Wrong motion") || f.includes("Try moving"))).toBe(true);
   });
 
   it("reports no movement when stationary and wave expected", () => {
@@ -256,7 +256,7 @@ describe("validateWithMotion", () => {
       },
       "Hello"
     );
-    expect(result.feedback.some((f) => f.includes("No movement"))).toBe(true);
+    expect(result.feedback.some((f) => f.includes("Try moving") || f.includes("wave") || f.includes("No movement") || f.includes("stationary"))).toBe(true);
   });
 
   it("returns score between 0 and 100", () => {
