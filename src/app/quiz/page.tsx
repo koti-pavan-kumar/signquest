@@ -29,6 +29,7 @@ import {
 import {
   getExpectedGesture,
   classifyGesture,
+  validateWordGesture,
   ExpectedGesture,
 } from "@/lib/word-gesture-map";
 import { saveQuizResult, addXP, addStreak, loadProgress } from "@/lib/persistence";
@@ -159,6 +160,9 @@ export default function QuizPage() {
     isActive: cameraActive,
   } = useCamera();
   const [currentAnalysis, setCurrentAnalysis] = useState<GestureAnalysis | null>(null);
+  const [liveStatus, setLiveStatus] = useState<string[]>([]);
+  const [autoScore, setAutoScore] = useState(0);
+  const autoSubmitCooldownRef = useRef(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const motionTrackerRef = useRef(new MotionTracker());
 
@@ -177,6 +181,75 @@ export default function QuizPage() {
       setDetectedGestureName("");
     }
   }, [cameraAnalysis]);
+
+  // ===== CONTINUOUS AUTO-DETECTION =====
+  // When timer is running, continuously check the gesture and auto-submit
+  useEffect(() => {
+    if (!quiz.isRunning || quiz.showResult || gameOver || !cameraActive || !currentAnalysis || autoSubmitCooldownRef.current) return;
+
+    // Evaluate gesture continuously
+    const evaluate = () => {
+      if (!currentAnalysis || !handDetected || quiz.showResult || autoSubmitCooldownRef.current) return;
+
+      const newStatus: string[] = [];
+      let gestureScore = 0;
+
+      if (language === "isl" && currentISLWord) {
+        // ISL validation
+        const f = currentAnalysis.fingers;
+        const expected = currentISLWord.fingers;
+        let correct = 0;
+        let wrongFingers = 0;
+        const fingerNames: (keyof typeof f)[] = ["thumb", "index", "middle", "ring", "pinky"];
+
+        for (const fn of fingerNames) {
+          if (f[fn] === expected[fn]) correct++;
+          else wrongFingers++;
+        }
+        gestureScore = Math.round((correct / 5) * 100);
+
+        if (gestureScore >= 80) newStatus.push("✅ ISL gesture looks good!");
+        else if (wrongFingers > 0) newStatus.push(`Fix ${wrongFingers} finger${wrongFingers > 1 ? "s" : ""}`);
+
+      } else if (currentExpected) {
+        // ASL validation using word-gesture-map
+        const gestureResult = validateWordGesture(
+          currentAnalysis.fingers,
+          currentAnalysis.fingerSpread,
+          currentAnalysis.fistRatio,
+          currentExpected
+        );
+        gestureScore = gestureResult.score;
+
+        if (gestureScore >= 70) newStatus.push("✅ Gesture looks good!");
+        else {
+          const tips = gestureResult.feedback.filter((fb) => fb.includes("EXTENDED") || fb.includes("CURLED") || fb.includes("SPREAD")).slice(0, 1);
+          if (tips.length) newStatus.push(tips[0]);
+        }
+      }
+
+      // Add motion feedback
+      const motionAnalysis = motionTrackerRef.current.getAnalysis();
+      if (motionAnalysis.isMoving) {
+        newStatus.push(`Motion: ${motionAnalysis.motionType} ✓`);
+      }
+
+      setLiveStatus(newStatus);
+      setAutoScore(gestureScore);
+
+      // AUTO-SUBMIT when gesture is good enough
+      if (gestureScore >= 70 && !autoSubmitCooldownRef.current) {
+        autoSubmitCooldownRef.current = true;
+        // Small delay for dramatic effect
+        setTimeout(() => {
+          submitAnswer();
+          setTimeout(() => { autoSubmitCooldownRef.current = false; }, 2500);
+        }, 300);
+      }
+    };
+
+    evaluate();
+  }, [currentAnalysis, handDetected, quiz.isRunning, quiz.showResult, gameOver, cameraActive, language, currentExpected, currentISLWord]);
 
   // Get current quiz word list based on language
   const getQuizWordList = useCallback(() => {
@@ -205,6 +278,8 @@ export default function QuizPage() {
     setShowHint(false);
     setFeedbackResult(null);
     setDetectedGestureName("");
+    setLiveStatus([]);
+    setAutoScore(0);
     motionTrackerRef.current.reset();
     setQuiz((prev) => ({ ...prev, timeLeft: 15, showResult: false }));
 
@@ -709,18 +784,50 @@ export default function QuizPage() {
                 </div>
               )}
 
-              {/* Submit Button */}
-              <button
-                onClick={submitAnswer}
-                disabled={!handDetected || quiz.showResult}
-                className={`w-full py-3 text-white font-bold rounded-xl shadow-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 ${
-                  language === "isl"
-                    ? "bg-gradient-to-r from-orange-500 to-amber-600 shadow-orange-500/25"
-                    : "bg-gradient-to-r from-pink-500 to-rose-600 shadow-pink-500/25"
-                }`}
-              >
-                {quiz.showResult ? "Next Question..." : "Submit Answer"}
-              </button>
+              {/* Live Auto-Detection Status */}
+              {quiz.isRunning && !quiz.showResult && (
+                <div className="space-y-2">
+                  {/* Live status messages */}
+                  {liveStatus.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {liveStatus.map((status, i) => (
+                        <div key={i} className={`px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
+                          status.startsWith("✅")
+                            ? "bg-emerald-900/50 text-emerald-300 border border-emerald-700/50"
+                            : "bg-blue-900/50 text-blue-300 border border-blue-700/50"
+                        }`}>
+                          {status}
+                        </div>
+                      ))}
+                    </div>
+                  ) : handDetected ? (
+                    <div className="px-3 py-2 rounded-lg text-sm font-medium bg-amber-900/50 text-amber-300 border border-amber-700/50 flex items-center gap-2">
+                      <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+                      Watching for your sign...
+                    </div>
+                  ) : (
+                    <div className="px-3 py-2 rounded-lg text-sm font-medium bg-gray-800 text-gray-400 flex items-center gap-2">
+                      <Eye className="w-4 h-4" />
+                      Show your hand to the camera
+                    </div>
+                  )}
+
+                  {/* Auto-score progress bar */}
+                  {autoScore > 0 && (
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            autoScore >= 70 ? "bg-emerald-500" : autoScore >= 50 ? "bg-amber-500" : "bg-red-500"
+                          }`}
+                          style={{ width: `${autoScore}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-gray-400 font-mono">{autoScore}%</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Feedback */}
               <AnimatePresence>
