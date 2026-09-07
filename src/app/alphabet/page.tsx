@@ -365,10 +365,8 @@ export default function AlphabetPage() {
         </div>
 
         {/* Main Content */}
-        <motion.div
+        <div
           key={selectedIndex}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
           className="grid grid-cols-1 lg:grid-cols-2 gap-6"
         >
           {/* Camera + AI Teacher */}
@@ -607,7 +605,7 @@ export default function AlphabetPage() {
               </button>
             </div>
           </div>
-        </motion.div>
+        </div>
       </div>
     </div>
   );

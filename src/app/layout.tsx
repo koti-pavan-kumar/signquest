@@ -27,12 +27,6 @@ export const metadata: Metadata = {
       "Learn ASL and ISL through an interactive AI-powered game with real-time webcam gesture detection.",
     type: "website",
   },
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "SignQuest",
-  },
 };
 
 export const viewport: Viewport = {
@@ -51,10 +45,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <head>
-        <link rel="apple-touch-icon" href="/icon-192.png" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-      </head>
       <body className="min-h-screen bg-background antialiased">
         {/* Skip to main content — WCAG 2.4.1 */}
         <a
@@ -68,18 +58,6 @@ export default function RootLayout({
           {children}
         </main>
         <Footer />
-        {/* Service Worker Registration */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                  navigator.serviceWorker.register('/sw.js').catch(() => {});
-                });
-              }
-            `,
-          }}
-        />
       </body>
     </html>
   );
