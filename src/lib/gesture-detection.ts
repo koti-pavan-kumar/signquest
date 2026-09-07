@@ -77,16 +77,20 @@ export function analyzeGesture(landmarks: Landmark[]): GestureAnalysis {
   const isFingerExtended = (pipIdx: number, tipIdx: number, mcpIdx: number): boolean => {
     const pipToTip = dist(landmarks[pipIdx], landmarks[tipIdx]);
     const mcpToPip = dist(landmarks[mcpIdx], landmarks[pipIdx]);
-    // Also check the angle — extended fingers point upward/outward
     const a = angle(landmarks[mcpIdx], landmarks[pipIdx], landmarks[tipIdx]);
-    // Extended finger: angle is relatively straight (>140°) AND tip is far from palm
-    return a > 140 && pipToTip > mcpToPip * 0.5;
+    // Extended: relatively straight angle (>110°) AND tip far from palm
+    // Lowered thresholds for palm-facing-camera detection
+    return a > 110 && pipToTip > mcpToPip * 0.4;
   };
 
-  // Thumb: use x-coordinate comparison (thumb extends sideways)
+  // Thumb: more lenient — check if tip is far from wrist AND angle is open
+  // Works for palm-forward, side-view, and angled hand positions
+  const thumbTipDist = dist(landmarks[4], landmarks[0]);
+  const thumbIpDist = dist(landmarks[3], landmarks[0]);
+  const thumbAngle = angle(landmarks[2], landmarks[1], landmarks[4]);
   const thumbExtended =
-    dist(landmarks[4], landmarks[0]) > dist(landmarks[3], landmarks[0]) * 1.1 &&
-    angle(landmarks[2], landmarks[1], landmarks[4]) > 100;
+    (thumbTipDist > thumbIpDist * 1.0 || thumbAngle > 80) &&
+    thumbTipDist > dist(landmarks[1], landmarks[0]) * 0.6;
 
   const indexExtended = isFingerExtended(6, 8, 5);
   const middleExtended = isFingerExtended(10, 12, 9);

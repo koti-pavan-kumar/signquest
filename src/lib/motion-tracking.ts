@@ -54,10 +54,10 @@ export type MotionType =
 
 // ===== Constants =====
 
-const RECORDING_WINDOW_MS = 2000;     // 2 seconds of data
-const MIN_FRAMES_FOR_MOTION = 8;      // Need at least 8 frames
-const VELOCITY_THRESHOLD = 0.15;       // Min velocity to count as "moving" (normalized coords/sec)
-const OSCILLATION_THRESHOLD = 0.08;    // Min displacement to count as direction change
+const RECORDING_WINDOW_MS = 3500;     // 3.5 seconds of data (matches 3s recording + buffer)
+const MIN_FRAMES_FOR_MOTION = 5;      // Need at least 5 frames
+const VELOCITY_THRESHOLD = 0.08;       // Min velocity to count as "moving" (lowered for gentle waves)
+const OSCILLATION_THRESHOLD = 0.03;    // Min displacement to count as direction change (lowered)
 const CIRCULARITY_THRESHOLD = 0.6;     // How circular the path must be (0-1)
 const SNAP_VELOCITY_THRESHOLD = 0.5;   // High velocity for snap detection
 const TAP_INTERVAL_MS = 600;           // Max ms between taps
@@ -336,11 +336,11 @@ function classifyMotion(params: MotionParams): {
     }
   }
 
-  // Wave — horizontal oscillation (2+ direction changes)
-  if (oscillationCount >= 2 && speed > VELOCITY_THRESHOLD) {
+  // Wave — horizontal oscillation (1+ direction changes for gentle waves)
+  if (oscillationCount >= 1 && speed > VELOCITY_THRESHOLD * 0.8) {
     return {
       motionType: "wave",
-      confidence: Math.min(1, 0.5 + oscillationCount * 0.15),
+      confidence: Math.min(1, 0.6 + oscillationCount * 0.1),
     };
   }
 

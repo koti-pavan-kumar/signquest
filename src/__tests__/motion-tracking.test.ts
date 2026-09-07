@@ -69,7 +69,7 @@ describe("MotionTracker", () => {
     expect(tracker.getFrameCount()).toBe(0);
   });
 
-  it("removes old frames outside the 2s window", () => {
+  it("removes old frames outside the 3.5s window", () => {
     // Add frames within window
     (performance.now as any).mockReturnValue(0);
     tracker.addFrame(landmarksAt(0.5, 0.5));
@@ -77,11 +77,11 @@ describe("MotionTracker", () => {
     tracker.addFrame(landmarksAt(0.5, 0.5));
     expect(tracker.getFrameCount()).toBe(2);
 
-    // Jump past window
-    (performance.now as any).mockReturnValue(3000);
+    // Jump past 3.5s window (cutoff = 4000 - 3500 = 500, frame at 0 removed, frame at 500 kept)
+    (performance.now as any).mockReturnValue(4000);
     tracker.addFrame(landmarksAt(0.5, 0.5));
-    // Old frames should be removed
-    expect(tracker.getFrameCount()).toBe(1);
+    // Frame at 0ms removed, frame at 500ms kept, new frame added = 2
+    expect(tracker.getFrameCount()).toBe(2);
   });
 
   it("isMotionDetected returns false when no motion", () => {

@@ -39,7 +39,7 @@ export const WORD_GESTURE_MAP: Record<string, ExpectedGesture> = {
   Hello: {
     word: "Hello",
     fingers: { thumb: true, index: true, middle: true, ring: true, pinky: true },
-    minSpread: 0.3,
+    minSpread: 0.15,
     description: "Open palm facing forward, wave side to side",
     feedbackTips: [
       "Open all five fingers wide",
@@ -420,8 +420,8 @@ export function validateWordGesture(
   }
 
   const score = totalChecks > 0 ? Math.round((passedChecks / totalChecks) * 100) : 50;
-  // Strict: need 75%+ score AND no more than 1 wrong finger
-  const isCorrect = score >= 75 && wrongFingers <= 1;
+  // Lenient: need 65%+ score AND no more than 2 wrong fingers (forgiving for beginners)
+  const isCorrect = score >= 65 && wrongFingers <= 2;
 
   // Add positive feedback if correct
   if (isCorrect) {
