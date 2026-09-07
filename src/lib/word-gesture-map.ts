@@ -420,7 +420,8 @@ export function validateWordGesture(
   }
 
   const score = totalChecks > 0 ? Math.round((passedChecks / totalChecks) * 100) : 50;
-  const isCorrect = score >= 65 && wrongFingers <= 2;
+  // Strict: need 75%+ score AND no more than 1 wrong finger
+  const isCorrect = score >= 75 && wrongFingers <= 1;
 
   // Add positive feedback if correct
   if (isCorrect) {

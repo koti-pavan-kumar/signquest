@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { ASL_PATTERNS, checkLetter } from "@/lib/asl-patterns";
 
 describe("ASL_PATTERNS", () => {
-  it("has 17 letters defined", () => {
-    expect(Object.keys(ASL_PATTERNS)).toHaveLength(17);
+  it("has 26 letters defined", () => {
+    expect(Object.keys(ASL_PATTERNS)).toHaveLength(26);
   });
 
   it("each pattern has required finger states", () => {
@@ -60,7 +60,7 @@ describe("checkLetter", () => {
         fingerSpread: 0,
         fistRatio: 1,
       },
-      "Z"
+      "@"
     );
     expect(result.score).toBe(0);
     expect(result.isCorrect).toBe(false);

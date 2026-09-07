@@ -141,6 +141,68 @@ export const ASL_PATTERNS: Record<string, ASLPattern> = {
     tolerance: 0,
     checks: ["Only thumb and pinky extended", "Like a hang-loose or phone gesture"],
   },
+  J: {
+    letter: "J",
+    required: { thumb: false, index: false, middle: false, ring: false, pinky: true },
+    minFistRatio: 0.75,
+    tolerance: 0,
+    checks: ["Only pinky extended", "Draw a J motion in the air with pinky"],
+  },
+  K: {
+    letter: "K",
+    required: { thumb: true, index: true, middle: true, ring: false, pinky: false },
+    minSpread: 0.2,
+    tolerance: 0,
+    checks: ["Index and middle up with thumb between them", "Peace sign with thumb between fingers"],
+  },
+  M: {
+    letter: "M",
+    required: { thumb: false, index: false, middle: false, ring: false, pinky: false },
+    minFistRatio: 0.75,
+    tolerance: 0,
+    checks: ["Three fingers folded over thumb", "Thumb peeks between ring and pinky"],
+  },
+  N: {
+    letter: "N",
+    required: { thumb: false, index: false, middle: false, ring: false, pinky: false },
+    minFistRatio: 0.75,
+    tolerance: 0,
+    checks: ["Two fingers folded over thumb", "Thumb peeks between middle and ring"],
+  },
+  P: {
+    letter: "P",
+    required: { thumb: true, index: true, middle: true, ring: false, pinky: false },
+    minSpread: 0.2,
+    tolerance: 0,
+    checks: ["Index and middle pointing down", "Like K but pointing downward"],
+  },
+  Q: {
+    letter: "Q",
+    required: { thumb: true, index: true, middle: false, ring: false, pinky: false },
+    tolerance: 0,
+    checks: ["Index and thumb pointing down", "Like G but pointing downward"],
+  },
+  R: {
+    letter: "R",
+    required: { thumb: false, index: true, middle: true, ring: false, pinky: false },
+    maxSpread: 0.15,
+    tolerance: 0,
+    checks: ["Index and middle fingers crossed", "Middle finger crossed over index"],
+  },
+  X: {
+    letter: "X",
+    required: { thumb: false, index: true, middle: false, ring: false, pinky: false },
+    minFistRatio: 0.5,
+    tolerance: 0,
+    checks: ["Index finger hooked/bent", "Like a crooked finger"],
+  },
+  Z: {
+    letter: "Z",
+    required: { thumb: false, index: true, middle: false, ring: false, pinky: false },
+    minFistRatio: 0.5,
+    tolerance: 0,
+    checks: ["Index finger extended", "Draw a Z shape in the air with index finger"],
+  },
 };
 
 /**

@@ -211,7 +211,7 @@ describe("validateWithMotion", () => {
     expect(result.score).toBeGreaterThan(60);
     expect(result.motionType).toBe("wave");
     // Should have motion feedback
-    expect(result.feedback.some((f) => f.includes("Motion detected"))).toBe(true);
+    expect(result.feedback.some((f) => f.includes("Motion") || f.includes("wave"))).toBe(true);
   });
 
   it("gives partial credit when motion doesn't match", () => {
@@ -233,8 +233,9 @@ describe("validateWithMotion", () => {
       "Hello"
     );
     expect(result.score).toBeLessThan(80);
-    // Should suggest the correct motion
-    expect(result.feedback.some((f) => f.includes("Try"))).toBe(true);
+    expect(result.isCorrect).toBe(false);
+    // Should mention the correct motion
+    expect(result.feedback.some((f) => f.includes("MUST move") || f.includes("wave"))).toBe(true);
   });
 
   it("reports no movement when stationary and wave expected", () => {

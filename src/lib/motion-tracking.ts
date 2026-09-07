@@ -737,29 +737,36 @@ export function validateWithMotion(
     motionAnalysis.motionType === signature.expectedMotion ||
     (signature.expectedMotion === "stationary" && !motionAnalysis.isMoving);
 
+  // Motion scoring: only give real credit if motion MATCHES
+  // If motion is wrong, score is near zero — you can't pass with wrong motion
   const motionScore = motionMatch
     ? Math.round(motionAnalysis.confidence * 100)
-    : Math.round(motionAnalysis.confidence * 40); // Partial credit
+    : motionAnalysis.isMoving
+      ? Math.round(motionAnalysis.confidence * 5)   // Tiny credit for moving at all
+      : 0;                                            // Zero credit for stationary
 
-  // Combine scores (60% static, 40% motion)
-  const combinedScore = Math.round(staticScore * 0.6 + motionScore * 0.4);
+  // Combine scores: 40% static + 60% motion
+  // Motion is the hard part — it matters more
+  const combinedScore = Math.round(staticScore * 0.4 + motionScore * 0.6);
 
   const feedback = [...staticFeedback];
 
   // Add motion feedback
   if (motionMatch) {
-    feedback.push(`Motion detected: ${signature.description} ✓`);
+    feedback.push(`Motion: ${signature.description} ✓`);
   } else if (motionAnalysis.isMoving) {
     feedback.push(
-      `Expected "${signature.description}" but detected ${motionAnalysis.motionType} motion`
+      `Wrong motion — expected "${signature.description}" but got ${motionAnalysis.motionType}`
     );
   } else {
     feedback.push(
-      `No movement detected. Try: ${signature.description}`
+      `No movement detected. You MUST move: ${signature.description}`
     );
   }
 
-  const isCorrect = combinedScore >= 60;
+  // STRICT: BOTH static handshape AND motion must be good to pass
+  // No more passing just because the handshape is close
+  const isCorrect = combinedScore >= 70 && motionMatch;
 
   return {
     score: combinedScore,

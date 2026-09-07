@@ -140,12 +140,11 @@ export default function TrainPage() {
 
         if (pattern) {
           const result = checkLetter(currentAnalysis!, firstLetter);
-          const adjustedScore = Math.min(100, result.score + 20);
 
           const motionResult = validateWithMotion(
-            adjustedScore,
-            adjustedScore >= 70
-              ? [`Great job! You signed "${word}" correctly! 🎉`]
+            result.score,
+            result.score >= 70
+              ? [`Good handshape for "${word}"!`]
               : [...result.feedback, `Try focusing on the letter "${firstLetter}" first.`],
             motionAnalysis,
             word
@@ -153,11 +152,11 @@ export default function TrainPage() {
 
           setCheckResult({
             score: motionResult.score,
-            isCorrect: motionResult.isCorrect || adjustedScore >= 70,
+            isCorrect: motionResult.isCorrect && motionResult.score >= 70,
             feedback: motionResult.feedback,
           });
 
-          if (motionResult.isCorrect || adjustedScore >= 70) {
+          if (motionResult.isCorrect && motionResult.score >= 70) {
             const key = `${selectedDifficulty}-${selectedIndex}`;
             if ("word" in currentItem) {
               setPracticedWords((prev) => new Set(prev).add(key));
@@ -172,14 +171,14 @@ export default function TrainPage() {
           }
         } else {
           const f = currentAnalysis!.fingers;
-          let gestureScore = 50;
-          if (f.index && f.middle && f.ring && f.pinky && !f.thumb) gestureScore = 85;
-          else if (!f.index && !f.middle && !f.ring && !f.pinky && !f.thumb) gestureScore = 75;
-          else if (f.index && f.middle && !f.ring && !f.pinky) gestureScore = 80;
+          // More accurate gesture scoring based on common hand shapes
+          let gestureScore = 40;
+          const extended = [f.thumb, f.index, f.middle, f.ring, f.pinky].filter(Boolean).length;
+          gestureScore = 30 + extended * 8;
 
           const motionResult = validateWithMotion(
             gestureScore,
-            gestureScore >= 70
+            gestureScore >= 60
               ? [`Good hand position! For "${word}", try finger-spelling: ${(currentItem as WordEntry).fingerSpell.join("-")}`]
               : [`Try the sign again. Hint: ${(currentItem as WordEntry).tips[0]}`],
             motionAnalysis,
@@ -188,25 +187,41 @@ export default function TrainPage() {
 
           setCheckResult({
             score: motionResult.score,
-            isCorrect: motionResult.isCorrect || gestureScore >= 70,
+            isCorrect: motionResult.isCorrect && motionResult.score >= 70,
             feedback: motionResult.feedback,
           });
         }
       } else {
-        // Sentence
+        // Sentence — requires BOTH hand position AND motion
         const f = currentAnalysis!.fingers;
         const extended = [f.thumb, f.index, f.middle, f.ring, f.pinky].filter(Boolean).length;
-        const score = 60 + (extended * 5);
+        // Base score: hand must be clearly in frame with good shape
+        const handScore = Math.min(70, 20 + extended * 10);
+        // Motion score: sentences require movement
+        const motionScore = motionAnalysis.isMoving
+          ? Math.round(motionAnalysis.confidence * 100)
+          : 0;
+        // Combined: need both hand + motion
+        const combinedScore = Math.round(handScore * 0.4 + motionScore * 0.6);
+        const isCorrect = combinedScore >= 70 && motionAnalysis.isMoving;
+
+        const feedback: string[] = [];
+        if (motionAnalysis.isMoving) {
+          feedback.push(`${motionAnalysis.motionType} motion detected ✓`);
+        } else {
+          feedback.push("No movement detected — sentences need dynamic gestures. Move your hands!");
+        }
+        if (extended < 3) {
+          feedback.push("Show your hand more clearly — fingers should be visible.");
+        }
 
         setCheckResult({
-          score: Math.min(100, score),
-          isCorrect: score >= 70,
-          feedback: score >= 70
-            ? ["Good hand movement! Keep practicing the sentence flow. 🎉"]
-            : ["Show your hand more clearly. Try one sign at a time."],
+          score: combinedScore,
+          isCorrect,
+          feedback,
         });
 
-        if (score >= 70) {
+        if (isCorrect) {
           const key = `${selectedDifficulty}-${selectedIndex}`;
           setPracticedSentences((prev) => new Set(prev).add(key));
           if ("sentence" in currentItem) {
