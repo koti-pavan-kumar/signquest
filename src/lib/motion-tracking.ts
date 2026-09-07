@@ -476,6 +476,12 @@ export const MOTION_SIGNATURES: Record<string, MotionSignature> = {
     minConfidence: 0.4,
     description: "Hand moves forward from chin",
   },
+  धन्यवाद: {
+    sign: "धन्यवाद",
+    expectedMotion: "forward",
+    minConfidence: 0.4,
+    description: "Hindi Thank You — fingertips touch chin, move forward",
+  },
   Good: {
     sign: "Good",
     expectedMotion: "forward",
@@ -565,6 +571,128 @@ export const MOTION_SIGNATURES: Record<string, MotionSignature> = {
     expectedMotion: "forward",
     minConfidence: 0.4,
     description: "Claw hands pull toward you",
+  },
+
+  // ===== ISL Motion Signatures =====
+  Namaste: {
+    sign: "Namaste",
+    expectedMotion: "stationary",
+    minConfidence: 0.3,
+    description: "Press palms together in prayer position",
+  },
+  "Good Morning": {
+    sign: "Good Morning",
+    expectedMotion: "forward",
+    minConfidence: 0.4,
+    description: "Hand moves forward (good) + arc rising (morning)",
+  },
+  "Good Night": {
+    sign: "Good Night",
+    expectedMotion: "downward",
+    minConfidence: 0.4,
+    description: "Hands sweep downward (darkness)",
+  },
+  "How are you": {
+    sign: "How are you",
+    expectedMotion: "forward",
+    minConfidence: 0.4,
+    description: "Two fingers move from chest outward",
+  },
+  Mother: {
+    sign: "Mother",
+    expectedMotion: "tap",
+    minConfidence: 0.4,
+    description: "Thumb taps chin repeatedly",
+  },
+  Father: {
+    sign: "Father",
+    expectedMotion: "tap",
+    minConfidence: 0.4,
+    description: "Thumb taps forehead repeatedly",
+  },
+  Brother: {
+    sign: "Brother",
+    expectedMotion: "forward",
+    minConfidence: 0.4,
+    description: "Touch forehead then extend hand forward",
+  },
+  Sister: {
+    sign: "Sister",
+    expectedMotion: "forward",
+    minConfidence: 0.4,
+    description: "Touch chin then extend hand forward",
+  },
+  Rice: {
+    sign: "Rice",
+    expectedMotion: "tap",
+    minConfidence: 0.4,
+    description: "Bunched fingertips tap mouth",
+  },
+  Milk: {
+    sign: "Milk",
+    expectedMotion: "tap",
+    minConfidence: 0.4,
+    description: "Squeezing motion like milking a cow",
+  },
+  Happy: {
+    sign: "Happy",
+    expectedMotion: "upward",
+    minConfidence: 0.4,
+    description: "Flat hands brush upward on chest",
+  },
+  Sad: {
+    sign: "Sad",
+    expectedMotion: "downward",
+    minConfidence: 0.4,
+    description: "Flat hands brush downward on chest",
+  },
+  Angry: {
+    sign: "Angry",
+    expectedMotion: "upward",
+    minConfidence: 0.4,
+    description: "Claw hands rise from stomach to chest",
+  },
+  Come: {
+    sign: "Come",
+    expectedMotion: "forward",
+    minConfidence: 0.4,
+    description: "Fingers curl inward toward yourself",
+  },
+  Go: {
+    sign: "Go",
+    expectedMotion: "forward",
+    minConfidence: 0.4,
+    description: "Hand pushes away from body",
+  },
+  Stop: {
+    sign: "Stop",
+    expectedMotion: "stationary",
+    minConfidence: 0.3,
+    description: "Flat hand held up, palm facing forward",
+  },
+  Name: {
+    sign: "Name",
+    expectedMotion: "tap",
+    minConfidence: 0.4,
+    description: "Tap index and middle fingers together",
+  },
+  Hospital: {
+    sign: "Hospital",
+    expectedMotion: "trace",
+    minConfidence: 0.4,
+    description: "H-handshape draws cross on upper arm",
+  },
+  Home: {
+    sign: "Home",
+    expectedMotion: "stationary",
+    minConfidence: 0.3,
+    description: "Fingertips touch forming roof shape",
+  },
+  "Don't Know": {
+    sign: "Don't Know",
+    expectedMotion: "sideways",
+    minConfidence: 0.4,
+    description: "Palms up shrug with head shake",
   },
 };
 

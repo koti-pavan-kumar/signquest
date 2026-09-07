@@ -13,6 +13,7 @@ import {
   Brain,
   Star,
   Zap,
+  Languages,
 } from "lucide-react";
 
 import { GraduationCap } from "lucide-react";
@@ -21,10 +22,18 @@ const gameModes = [
   {
     icon: GraduationCap,
     title: "Word & Sentence Trainer",
-    description: "Progress from simple words to full sentences. 20+ words and 10+ sentences across 3 difficulty levels.",
+    description: "Progress from simple words to full sentences. 28+ words and 10+ sentences across 3 difficulty levels.",
     href: "/train",
     color: "from-blue-500 to-indigo-600",
-    badge: "NEW",
+    badge: "Core",
+  },
+  {
+    icon: Languages,
+    title: "ISL Explorer",
+    description: "Learn Indian Sign Language — 34 Devanagari letters, 35+ words, and cultural signs unique to India.",
+    href: "/isl",
+    color: "from-orange-500 to-amber-600",
+    badge: "🇮🇳 ISL",
   },
   {
     icon: Target,
@@ -37,7 +46,7 @@ const gameModes = [
   {
     icon: BookOpen,
     title: "Alphabet Explorer",
-    description: "Learn each sign letter A-Z with animated guides and live practice.",
+    description: "Learn each sign letter A-Z with animated guides, SVG illustrations, and live practice.",
     href: "/alphabet",
     color: "from-emerald-500 to-teal-600",
     badge: "Start Here",
@@ -45,7 +54,7 @@ const gameModes = [
   {
     icon: Gamepad2,
     title: "Free Play",
-    description: "Open practice mode — sign anything and get real-time feedback.",
+    description: "Open practice mode — sign anything and get real-time AI feedback.",
     href: "/game",
     color: "from-violet-500 to-purple-600",
     badge: "Practice",
@@ -54,16 +63,16 @@ const gameModes = [
 
 const stats = [
   { value: "268M+", label: "Deaf & Hard of Hearing in India" },
+  { value: "18M+", label: "ISL Users in India" },
   { value: "300+", label: "Sign Languages Worldwide" },
-  { value: "70M+", label: "Global Deaf Community" },
-  { value: "#1", label: "Accessible Learning Game" },
+  { value: "#1", label: "Dual-Language Learning Game" },
 ];
 
 const features = [
   { icon: Hand, title: "Real-Time Detection", desc: "AI detects your hand gestures via webcam instantly" },
-  { icon: Brain, title: "AI-Powered Scoring", desc: "Machine learning evaluates your sign accuracy" },
-  { icon: Star, title: "30+ Words & Sentences", desc: "Structured curriculum from letters to full sentences" },
-  { icon: Zap, title: "Instant Feedback", desc: "Get corrected immediately — learn faster" },
+  { icon: Brain, title: "Motion Detection", desc: "Custom engine tracks wave, circle, snap, and tap motions" },
+  { icon: Languages, title: "ASL + ISL Support", desc: "Learn both American and Indian Sign Languages" },
+  { icon: Zap, title: "Instant Feedback", desc: "Get corrected immediately with per-finger guidance" },
 ];
 
 const fadeInUp = {
@@ -114,9 +123,10 @@ export default function HomePage() {
               transition={{ delay: 0.2, duration: 0.6 }}
               className="text-lg sm:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-10 text-balance"
             >
-              An AI-powered interactive game that teaches you sign language
-              through quizzes, challenges, and real-time webcam feedback.
-              No prior knowledge needed.
+              An AI-powered interactive game that teaches you{" "}
+              <span className="font-semibold text-orange-500">ASL</span> and{" "}
+              <span className="font-semibold text-orange-500">Indian Sign Language (ISL)</span>{" "}
+              through quizzes, challenges, and real-time webcam feedback. No prior knowledge needed.
             </motion.p>
 
             <motion.div
@@ -134,10 +144,10 @@ export default function HomePage() {
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link
-                href="/alphabet"
-                className="px-8 py-3.5 border-2 border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 font-semibold rounded-xl hover:bg-violet-50 dark:hover:bg-violet-900/30 transition-all active:scale-95"
+                href="/isl"
+                className="flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 transition-all active:scale-95"
               >
-                Learn the Alphabet
+                🇮🇳 Learn ISL
               </Link>
             </motion.div>
           </div>
@@ -183,11 +193,11 @@ export default function HomePage() {
               Choose Your <span className="bg-gradient-to-r from-violet-400 to-purple-600 bg-clip-text text-transparent">Game Mode</span>
             </h2>
             <p className="text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
-              Four ways to learn. All powered by real-time AI hand detection.
+              Five ways to learn. Both ASL and ISL. All powered by real-time AI hand detection.
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {gameModes.map((mode, i) => (
               <motion.div
                 key={mode.title}
@@ -197,7 +207,7 @@ export default function HomePage() {
                 custom={i}
                 variants={fadeInUp}
               >
-                <Link href={mode.href} className="block feature-card group">
+                <Link href={mode.href} className="block feature-card group h-full">
                   <div className="flex items-start gap-4">
                     <div
                       className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${mode.color} flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform`}
@@ -242,7 +252,7 @@ export default function HomePage() {
               Powered by <span className="bg-gradient-to-r from-violet-400 to-purple-600 bg-clip-text text-transparent">AI</span>
             </h2>
             <p className="text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
-              Real computer vision running in your browser. No server needed.
+              Real computer vision running in your browser. Dual-language support. No server needed.
             </p>
           </motion.div>
 
@@ -286,7 +296,7 @@ export default function HomePage() {
             {[
               { step: "01", title: "Enable Camera", desc: "Grant webcam access — all processing happens locally in your browser." },
               { step: "02", title: "See the Challenge", desc: "A word or letter appears on screen. You have a few seconds to sign it." },
-              { step: "03", title: "Get Scored", desc: "AI analyzes your hand shape and gives instant accuracy feedback + points." },
+              { step: "03", title: "Get Scored", desc: "AI analyzes your hand shape AND motion pattern and gives instant feedback + points." },
             ].map((item, i) => (
               <motion.div
                 key={item.step}
@@ -308,6 +318,61 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ISL Highlight Section */}
+      <section className="section-padding bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-orange-500/10">
+        <div className="container-custom">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-12"
+          >
+            <span className="text-5xl mb-4 block">🇮🇳</span>
+            <h2 className="text-3xl sm:text-4xl font-extrabold mb-4">
+              <span className="bg-gradient-to-r from-orange-500 to-amber-600 bg-clip-text text-transparent">
+                Indian Sign Language (ISL)
+              </span>
+            </h2>
+            <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-8">
+              India&apos;s native sign language, used by 18 million deaf and hard-of-hearing Indians.
+              Learn Devanagari alphabet, common Hindi signs, and cultural gestures.
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            {[
+              { title: "Devanagari Alphabet", desc: "10 vowels + 24 consonants in ISL fingerspelling", icon: "🔤" },
+              { title: "35+ Common Words", desc: "Greetings, family, food, emotions, numbers, and places", icon: "📚" },
+              { title: "Cultural Signs", desc: "Namaste, family terms, Indian food signs unique to ISL", icon: "🕉️" },
+            ].map((item, i) => (
+              <motion.div
+                key={item.title}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                custom={i}
+                variants={fadeInUp}
+                className="p-6 rounded-2xl bg-white dark:bg-gray-900/50 border border-orange-200 dark:border-orange-800 text-center"
+              >
+                <span className="text-3xl mb-3 block">{item.icon}</span>
+                <h3 className="font-bold text-gray-900 dark:text-white mb-2">{item.title}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{item.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="text-center mt-8">
+            <Link
+              href="/isl"
+              className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 transition-all active:scale-95"
+            >
+              🇮🇳 Start Learning ISL
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="section-padding bg-gradient-to-r from-violet-600 to-purple-600">
         <div className="container-custom text-center">
@@ -320,7 +385,7 @@ export default function HomePage() {
               Ready to Sign? 🤟
             </h2>
             <p className="text-lg text-violet-100 max-w-xl mx-auto mb-8">
-              No downloads. No sign-ups. Just open your camera and start learning sign language in minutes.
+              No downloads. No sign-ups. Just open your camera and start learning ASL or ISL in minutes.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
@@ -330,10 +395,10 @@ export default function HomePage() {
                 🎯 Start Training
               </Link>
               <Link
-                href="/alphabet"
-                className="px-8 py-3.5 border-2 border-white/40 text-white font-bold rounded-xl hover:bg-white/10 transition-all active:scale-95"
+                href="/isl"
+                className="px-8 py-3.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white font-bold rounded-xl shadow-xl hover:from-orange-600 hover:to-amber-700 transition-all active:scale-95"
               >
-                📖 Learn the Alphabet
+                🇮🇳 Learn ISL
               </Link>
             </div>
           </motion.div>

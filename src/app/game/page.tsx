@@ -1,9 +1,18 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Gamepad2, Camera, VideoOff, RotateCcw, Hand, Volume2, Eye } from "lucide-react";
-import { analyzeGesture, Landmark } from "@/lib/gesture-detection";
+import { Gamepad2, RotateCcw, Hand, Volume2 } from "lucide-react";
+import { classifyGesture } from "@/lib/word-gesture-map";
+import { recordGesture } from "@/lib/persistence";
+import {
+  useCamera,
+  CameraLoadingSpinner,
+  CameraError,
+  CameraStatusBadge,
+  StartCameraButton,
+  StopCameraButton,
+} from "@/hooks/useCamera";
 
 const GESTURE_MAP: Record<string, { meaning: string; emoji: string }> = {
   open_palm: { meaning: "Hello / Open Palm", emoji: "🖐️" },
@@ -17,122 +26,47 @@ const GESTURE_MAP: Record<string, { meaning: string; emoji: string }> = {
 };
 
 export default function GamePage() {
-  const [isActive, setIsActive] = useState(false);
+  const {
+    status,
+    errorMessage,
+    handDetected,
+    analysis,
+    startCamera,
+    stopCamera,
+    videoRef,
+    canvasRef,
+    isActive,
+  } = useCamera();
+
   const [detectedGesture, setDetectedGesture] = useState("");
-  const [confidence, setConfidence] = useState(0);
   const [history, setHistory] = useState<{ gesture: string; time: number }[]>([]);
   const [totalDetected, setTotalDetected] = useState(0);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const animRef = useRef<number | null>(null);
-
-  // MediaPipe
-  const mpHandsRef = useRef<any>(null);
-  const [handDetected, setHandDetected] = useState(false);
-
-  const initMediaPipe = useCallback(async () => {
-    if (mpHandsRef.current) return;
-    try {
-      const { Hands } = await import("@mediapipe/hands");
-      const hands = new Hands({
-        locateFile: (f: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`,
-      });
-      hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.5 });
-      hands.onResults((results: any) => {
-        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-          const lm = results.multiHandLandmarks[0];
-          setHandDetected(true);
-          const a = analyzeGesture(lm as Landmark[]);
-          const f = a.fingers;
-          let g = "unknown";
-          if (!f.thumb && !f.index && !f.middle && !f.ring && !f.pinky && a.fistRatio > 0.8) g = "fist";
-          else if (f.index && f.middle && f.ring && f.pinky && !f.thumb) g = "open_palm";
-          else if (f.index && f.middle && !f.ring && !f.pinky) g = a.fingerSpread > 0.3 ? "peace" : "ok";
-          else if (f.thumb && f.pinky && !f.index) g = "call_me";
-          else if (f.index && !f.middle && f.thumb) g = "thumbs_up";
-          setDetectedGesture(g);
-          setConfidence(a.confidence);
-        } else {
-          setHandDetected(false);
-          setDetectedGesture("");
-        }
-        if (canvasRef.current && videoRef.current) {
-          const ctx = canvasRef.current.getContext("2d");
-          if (ctx) {
-            canvasRef.current.width = videoRef.current.videoWidth;
-            canvasRef.current.height = videoRef.current.videoHeight;
-            ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-            ctx.drawImage(videoRef.current, 0, 0);
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-              const handLm = results.multiHandLandmarks[0];
-              const conns = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],[0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17]];
-              ctx.strokeStyle = "#22c55e"; ctx.lineWidth = 2;
-              for (const [a,b] of conns) {
-                ctx.beginPath();
-                ctx.moveTo(handLm[a].x * canvasRef.current.width, handLm[a].y * canvasRef.current.height);
-                ctx.lineTo(handLm[b].x * canvasRef.current.width, handLm[b].y * canvasRef.current.height);
-                ctx.stroke();
-              }
-              ctx.fillStyle = "#22c55e";
-              for (const p of handLm) {
-                ctx.beginPath(); ctx.arc(p.x * canvasRef.current.width, p.y * canvasRef.current.height, 3, 0, 2 * Math.PI); ctx.fill();
-              }
-            }
-          }
-        }
-      });
-      mpHandsRef.current = hands;
-    } catch (e) { console.error("MediaPipe failed:", e); }
-  }, []);
-
+  // Classify gesture from analysis
   useEffect(() => {
-    if (!isActive || !mpHandsRef.current || !videoRef.current) return;
-    let id: number;
-    const loop = async () => {
-      if (videoRef.current && videoRef.current.readyState >= 2 && mpHandsRef.current) {
-        try { await mpHandsRef.current.send({ image: videoRef.current }); } catch {}
-      }
-      id = requestAnimationFrame(loop);
-    };
-    id = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(id);
-  }, [isActive]);
-
-  const startCamera = useCallback(async () => {
-    try {
-      await initMediaPipe();
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: 640, height: 480 },
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-      setIsActive(true);
-    } catch {
-      alert("Camera access is required for free play mode.");
+    if (analysis) {
+      const gesture = classifyGesture(
+        analysis.fingers,
+        analysis.fingerSpread,
+        analysis.fistRatio
+      );
+      setDetectedGesture(gesture);
+    } else {
+      setDetectedGesture("");
     }
-  }, [initMediaPipe]);
+  }, [analysis]);
 
-  const stopCamera = useCallback(() => {
-    if (animRef.current) cancelAnimationFrame(animRef.current);
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-    setIsActive(false);
-    setHandDetected(false);
-    setDetectedGesture("");
-  }, []);
-
-  const recordGesture = useCallback(() => {
+  const recordGestureAction = useCallback(() => {
     if (!detectedGesture) return;
     setHistory((prev) => [{ gesture: detectedGesture, time: Date.now() }, ...prev.slice(0, 49)]);
     setTotalDetected((p) => p + 1);
+    recordGesture();
   }, [detectedGesture]);
+
+  const clearHistory = useCallback(() => {
+    setHistory([]);
+    setTotalDetected(0);
+  }, []);
 
   useEffect(() => {
     return () => stopCamera();
@@ -159,60 +93,68 @@ export default function GamePage() {
             <div className="camera-feed bg-gray-900 relative mb-4">
               <video ref={videoRef} className={`w-full ${isActive ? "hidden" : ""}`} autoPlay playsInline muted />
               <canvas ref={canvasRef} className={`w-full ${isActive ? "" : "hidden"}`} />
-              {!isActive && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-900/90">
+
+              {/* Idle state */}
+              {!isActive && status === "idle" && (
+                <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center">
                     <Hand className="w-16 h-16 text-gray-600 mx-auto mb-4" />
                     <p className="text-gray-400 mb-4">Enable your camera to start practicing</p>
-                    <button onClick={startCamera} className="btn-primary flex items-center gap-2 mx-auto">
-                      <Camera className="w-5 h-5" /> Start Camera
-                    </button>
+                    <StartCameraButton onClick={startCamera} />
                   </div>
                 </div>
               )}
 
+              {/* Loading state */}
+              {status === "loading" && <CameraLoadingSpinner message="Loading hand detection..." />}
+
+              {/* Error state */}
+              {(status === "error" || status === "no-permission") && (
+                <CameraError message={errorMessage} onRetry={startCamera} />
+              )}
+
+              {/* Active camera overlay */}
               {isActive && (
                 <>
-                  <div className={`absolute top-3 left-3 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 ${
-                    handDetected ? "bg-emerald-500/80 text-white" : "bg-amber-500/80 text-white"
-                  }`}>
-                    <Eye className="w-3 h-3" />
-                    {handDetected ? "Hand detected" : "Show your hand"}
-                  </div>
+                  <CameraStatusBadge status={status} handDetected={handDetected} />
                   {detectedGesture && (
                     <div className="absolute bottom-4 left-4 right-4 bg-black/60 backdrop-blur-sm rounded-xl p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-3xl">{GESTURE_MAP[detectedGesture]?.emoji || "❓"}</span>
-                      <div>
-                        <p className="text-white font-bold">{GESTURE_MAP[detectedGesture]?.meaning || "Unknown"}</p>
-                        <p className="text-gray-300 text-sm">Confidence: {(confidence * 100).toFixed(0)}%</p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-3xl">{GESTURE_MAP[detectedGesture]?.emoji || "❓"}</span>
+                          <div>
+                            <p className="text-white font-bold">{GESTURE_MAP[detectedGesture]?.meaning || "Unknown"}</p>
+                            <p className="text-gray-300 text-sm">Confidence: {((analysis?.confidence || 0) * 100).toFixed(0)}%</p>
+                          </div>
+                        </div>
+                        <button onClick={recordGestureAction} className="px-4 py-2 bg-violet-600 text-white text-sm font-bold rounded-lg hover:bg-violet-700">
+                          Record
+                        </button>
                       </div>
                     </div>
-                    <button onClick={recordGesture} className="px-4 py-2 bg-violet-600 text-white text-sm font-bold rounded-lg hover:bg-violet-700">
-                      Record
-                    </button>
-                  </div>
-                </div>
-              )}
+                  )}
                 </>
               )}
             </div>
 
+            {/* Controls */}
             <div className="flex gap-2">
               {isActive ? (
-                <button onClick={stopCamera} className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white text-sm font-semibold rounded-xl hover:bg-red-600">
-                  <VideoOff className="w-4 h-4" /> Stop Camera
-                </button>
-              ) : (
-                <button onClick={startCamera} className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700">
-                  <Camera className="w-4 h-4" /> Start Camera
-                </button>
-              )}
-              <button onClick={() => { setHistory([]); setTotalDetected(0); }} className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800">
+                <StopCameraButton onClick={stopCamera} />
+              ) : status === "idle" ? (
+                <StartCameraButton onClick={startCamera} />
+              ) : null}
+              <button onClick={clearHistory} className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800">
                 <RotateCcw className="w-4 h-4" /> Clear History
               </button>
             </div>
+
+            {/* Error warning */}
+            {isActive && errorMessage && (
+              <div className="mt-3 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                <p className="text-xs text-amber-700 dark:text-amber-300">{errorMessage}</p>
+              </div>
+            )}
           </div>
 
           {/* Side Panel */}

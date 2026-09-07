@@ -16,6 +16,7 @@ import {
   Volume2,
   Eye,
   Loader2,
+  Languages,
 } from "lucide-react";
 import { analyzeGesture, GestureAnalysis, Landmark } from "@/lib/gesture-detection";
 import {
@@ -32,8 +33,10 @@ import {
 } from "@/lib/word-gesture-map";
 import { saveQuizResult, addXP, addStreak, loadProgress } from "@/lib/persistence";
 import { MotionTracker, validateWithMotion, MotionType } from "@/lib/motion-tracking";
+import { ISL_WORDS, ALL_ISL_WORDS, ISLWordEntry, checkISLLetter } from "@/lib/isl-patterns";
 
-const QUIZ_WORDS = [
+// ===== ASL Quiz Words =====
+const ASL_QUIZ_WORDS = [
   { word: "Hello", difficulty: 1, hint: "Open palm facing forward, wave side to side" },
   { word: "Yes", difficulty: 1, hint: "Make a fist and nod it up and down" },
   { word: "No", difficulty: 1, hint: "Index and middle finger snap down against thumb" },
@@ -56,6 +59,52 @@ const QUIZ_WORDS = [
   { word: "Thank You", difficulty: 1, hint: "Flat hand, touch chin then move forward" },
 ];
 
+// ===== ISL Quiz Words =====
+const ISL_QUIZ_WORDS = [
+  // Greetings
+  { word: "Namaste", difficulty: 1, hindi: "नमस्ते", hint: "Press both palms together in prayer position" },
+  { word: "Good Morning", difficulty: 1, hindi: "सुप्रभात", hint: "Flat hand forward (good), then arc rising (morning)" },
+  { word: "Good Night", difficulty: 1, hindi: "शुभ रात्रि", hint: "Flat hand forward (good), then hands sweep down" },
+  { word: "How are you", difficulty: 2, hindi: "आप कैसे हैं", hint: "Two fingers moving from chest outward with question" },
+  // Polite
+  { word: "Thank You", difficulty: 1, hindi: "धन्यवाद", hint: "Fingertips touch chin, move forward" },
+  { word: "Please", difficulty: 1, hindi: "कृपया", hint: "Flat palm on chest, rub in circles" },
+  { word: "Sorry", difficulty: 1, hindi: "माफ़ कीजिए", hint: "Closed fist rubbing in circles on chest" },
+  // Essential
+  { word: "Yes", difficulty: 1, hindi: "हाँ", hint: "Closed fist nodding up and down" },
+  { word: "No", difficulty: 1, hindi: "नहीं", hint: "Index and middle finger snap down against thumb" },
+  { word: "Help", difficulty: 2, hindi: "मदद", hint: "Fist resting on flat palm, lift upward" },
+  // Family
+  { word: "Mother", difficulty: 2, hindi: "माँ", hint: "Thumb taps chin repeatedly" },
+  { word: "Father", difficulty: 2, hindi: "पापा", hint: "Thumb taps forehead repeatedly" },
+  { word: "Brother", difficulty: 2, hindi: "भाई", hint: "Index and thumb touch forehead, then extend" },
+  { word: "Sister", difficulty: 2, hindi: "बहन", hint: "Index and thumb touch chin, then extend" },
+  { word: "Family", difficulty: 3, hindi: "परिवार", hint: "F-hands circle outward from center" },
+  { word: "Friend", difficulty: 2, hindi: "दोस्त", hint: "Index fingers hook together" },
+  // Food
+  { word: "Rice", difficulty: 1, hindi: "चावल", hint: "Bunched fingertips tap mouth" },
+  { word: "Water", difficulty: 1, hindi: "पानी", hint: "W-handshape tapping chin" },
+  { word: "Eat", difficulty: 1, hindi: "खाना", hint: "Bunched fingertips tap mouth repeatedly" },
+  { word: "Drink", difficulty: 1, hindi: "पीना", hint: "C-handshape brought to mouth" },
+  { word: "Milk", difficulty: 2, hindi: "दूध", hint: "Squeezing motion like milking a cow" },
+  // Emotions
+  { word: "Happy", difficulty: 2, hindi: "खुश", hint: "Flat hands brushing upward on chest" },
+  { word: "Sad", difficulty: 2, hindi: "उदास", hint: "Flat hands brushing downward on chest" },
+  { word: "Love", difficulty: 2, hindi: "प्यार", hint: "Crossed fists over chest" },
+  { word: "Angry", difficulty: 3, hindi: "गुस्सा", hint: "Claw hands moving up from stomach" },
+  // Actions
+  { word: "Come", difficulty: 1, hindi: "आओ", hint: "Fingers curl inward toward yourself" },
+  { word: "Go", difficulty: 1, hindi: "जाओ", hint: "Hand pushes away from body" },
+  { word: "Stop", difficulty: 1, hindi: "रुको", hint: "Flat hand held up, palm facing forward" },
+  { word: "Name", difficulty: 2, hindi: "नाम", hint: "Tap index and middle fingers of both hands together" },
+  // Places
+  { word: "School", difficulty: 2, hindi: "विद्यालय", hint: "Clap then sweep hands apart" },
+  { word: "Home", difficulty: 2, hindi: "घर", hint: "Fingertips touch forming a roof shape" },
+  { word: "Hospital", difficulty: 3, hindi: "अस्पताल", hint: "H handshape drawing cross on upper arm" },
+];
+
+type Language = "asl" | "isl";
+
 interface QuizState {
   score: number;
   streak: number;
@@ -70,6 +119,7 @@ interface QuizState {
 }
 
 export default function QuizPage() {
+  const [language, setLanguage] = useState<Language>("asl");
   const [quiz, setQuiz] = useState<QuizState>({
     score: 0,
     streak: 0,
@@ -85,6 +135,7 @@ export default function QuizPage() {
 
   const [currentWord, setCurrentWord] = useState("");
   const [currentExpected, setCurrentExpected] = useState<ExpectedGesture | null>(null);
+  const [currentISLWord, setCurrentISLWord] = useState<ISLWordEntry | null>(null);
   const [showHint, setShowHint] = useState(false);
   const [difficulty, setDifficulty] = useState(1);
   const [gameOver, setGameOver] = useState(false);
@@ -127,15 +178,30 @@ export default function QuizPage() {
     }
   }, [cameraAnalysis]);
 
+  // Get current quiz word list based on language
+  const getQuizWordList = useCallback(() => {
+    return language === "isl" ? ISL_QUIZ_WORDS : ASL_QUIZ_WORDS;
+  }, [language]);
+
   const getRandomWord = useCallback(() => {
-    const available = QUIZ_WORDS.filter((w) => w.difficulty <= difficulty);
+    const wordList = getQuizWordList();
+    const available = wordList.filter((w) => w.difficulty <= difficulty);
     return available[Math.floor(Math.random() * available.length)];
-  }, [difficulty]);
+  }, [difficulty, getQuizWordList]);
 
   const nextQuestion = useCallback(() => {
     const word = getRandomWord();
     setCurrentWord(word.word);
-    setCurrentExpected(getExpectedGesture(word.word));
+
+    if (language === "isl") {
+      const islEntry = ALL_ISL_WORDS.find((w) => w.word === word.word);
+      setCurrentISLWord(islEntry || null);
+      setCurrentExpected(null);
+    } else {
+      setCurrentExpected(getExpectedGesture(word.word));
+      setCurrentISLWord(null);
+    }
+
     setShowHint(false);
     setFeedbackResult(null);
     setDetectedGestureName("");
@@ -159,7 +225,7 @@ export default function QuizPage() {
         return { ...prev, timeLeft: prev.timeLeft - 1 };
       });
     }, 1000);
-  }, [getRandomWord]);
+  }, [getRandomWord, language]);
 
   const startGame = useCallback(async () => {
     if (!cameraActive) await startCameraRaw();
@@ -180,7 +246,15 @@ export default function QuizPage() {
     });
     const word = getRandomWord();
     setCurrentWord(word.word);
-    setCurrentExpected(getExpectedGesture(word.word));
+
+    if (language === "isl") {
+      const islEntry = ALL_ISL_WORDS.find((w) => w.word === word.word);
+      setCurrentISLWord(islEntry || null);
+      setCurrentExpected(null);
+    } else {
+      setCurrentExpected(getExpectedGesture(word.word));
+      setCurrentISLWord(null);
+    }
 
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
@@ -199,9 +273,7 @@ export default function QuizPage() {
         return { ...prev, timeLeft: prev.timeLeft - 1 };
       });
     }, 1000);
-  }, [cameraActive, startCameraRaw, getRandomWord]);
-
-
+  }, [cameraActive, startCameraRaw, getRandomWord, language]);
 
   // Auto-advance after showing result
   useEffect(() => {
@@ -218,78 +290,144 @@ export default function QuizPage() {
     }
   }, [quiz.showResult, quiz.currentIndex, quiz.totalQuestions, nextQuestion]);
 
-  // Submit answer with PROPER gesture validation
+  // Submit answer with gesture validation (ASL or ISL)
   const submitAnswer = useCallback(() => {
-    if (!currentAnalysis || !handDetected || quiz.showResult || !currentExpected) return;
+    if (!currentAnalysis || !handDetected || quiz.showResult) return;
 
-    // Use the REAL gesture analysis from MediaPipe
-    const result = {
-      score: 0,
-      isCorrect: false,
-      feedback: [] as string[],
-    };
+    let result = { score: 0, isCorrect: false, feedback: [] as string[] };
 
-    // Compare detected finger states against expected gesture
-    const expected = currentExpected;
-    const detected = currentAnalysis;
+    if (language === "isl") {
+      // ===== ISL Validation =====
+      if (currentISLWord) {
+        const f = currentAnalysis.fingers;
+        const expected = currentISLWord.fingers;
+        let correct = 0;
+        const total = 5;
+        const feedback: string[] = [];
+        const fingerNames: (keyof typeof f)[] = ["thumb", "index", "middle", "ring", "pinky"];
+        let wrongFingers = 0;
 
-    let totalChecks = 0;
-    let passedChecks = 0;
-    const feedback: string[] = [];
+        for (const fn of fingerNames) {
+          if (f[fn] === expected[fn]) {
+            correct++;
+          } else {
+            wrongFingers++;
+            const label = fn.charAt(0).toUpperCase() + fn.slice(1);
+            if (expected[fn]) {
+              feedback.push(`${label} finger should be EXTENDED`);
+            } else {
+              feedback.push(`${label} finger should be CURLED`);
+            }
+          }
+        }
 
-    // Check each finger
-    const fingerNames = ["thumb", "index", "middle", "ring", "pinky"] as const;
-    let wrongFingers = 0;
+        // Check spread
+        if (currentISLWord.minSpread !== undefined || currentISLWord.maxSpread !== undefined) {
+          if (currentISLWord.minSpread !== undefined && currentAnalysis.fingerSpread < currentISLWord.minSpread) {
+            feedback.push("Spread your fingers MORE apart");
+          } else if (currentISLWord.maxSpread !== undefined && currentAnalysis.fingerSpread > currentISLWord.maxSpread) {
+            feedback.push("Keep your fingers CLOSER together");
+          } else {
+            correct++;
+          }
+        }
 
-    for (const finger of fingerNames) {
-      totalChecks++;
-      const expectedVal = expected.fingers[finger];
-      const actualVal = detected.fingers[finger];
+        // Check fist ratio
+        if (currentISLWord.minFistRatio !== undefined) {
+          if (currentAnalysis.fistRatio < currentISLWord.minFistRatio) {
+            feedback.push("Make a TIGHTER fist");
+          } else {
+            correct++;
+          }
+        }
 
-      if (expectedVal === actualVal) {
-        passedChecks++;
-      } else {
-        wrongFingers++;
-        const label = finger.charAt(0).toUpperCase() + finger.slice(1);
-        if (expectedVal) {
-          feedback.push(`${label} finger should be EXTENDED — try straightening it`);
+        const totalChecks = total + ((currentISLWord.minSpread !== undefined || currentISLWord.maxSpread !== undefined) ? 1 : 0) + (currentISLWord.minFistRatio !== undefined ? 1 : 0);
+        const score = Math.round((correct / totalChecks) * 100);
+        const isCorrect = score >= 65 && wrongFingers <= 2;
+
+        if (isCorrect) {
+          result = {
+            score,
+            isCorrect: true,
+            feedback: [`Great job! You signed "${currentISLWord.word}" (${currentISLWord.hindi}) correctly! 🎉`],
+          };
         } else {
-          feedback.push(`${label} finger should be CURLED — close it into your palm`);
+          result = { score, isCorrect: false, feedback };
+        }
+
+        // Add ISL-specific tips
+        if (!isCorrect) {
+          result.feedback.push(`ISL tip: ${currentISLWord.description}`);
+          currentISLWord.steps.forEach((step, i) => {
+            result.feedback.push(`${i + 1}. ${step}`);
+          });
         }
       }
-    }
+    } else {
+      // ===== ASL Validation =====
+      if (!currentExpected) return;
 
-    // Check spread
-    if (expected.minSpread !== undefined || expected.maxSpread !== undefined) {
-      totalChecks++;
-      if (expected.minSpread !== undefined && detected.fingerSpread < expected.minSpread) {
-        feedback.push("Spread your fingers MORE apart");
-      } else if (expected.maxSpread !== undefined && detected.fingerSpread > expected.maxSpread) {
-        feedback.push("Keep your fingers CLOSER together");
-      } else {
-        passedChecks++;
+      const expected = currentExpected;
+      const detected = currentAnalysis;
+      let totalChecks = 0;
+      let passedChecks = 0;
+      const feedback: string[] = [];
+      let wrongFingers = 0;
+      const fingerNames = ["thumb", "index", "middle", "ring", "pinky"] as const;
+
+      for (const finger of fingerNames) {
+        totalChecks++;
+        const expectedVal = expected.fingers[finger];
+        const actualVal = detected.fingers[finger];
+        if (expectedVal === actualVal) {
+          passedChecks++;
+        } else {
+          wrongFingers++;
+          const label = finger.charAt(0).toUpperCase() + finger.slice(1);
+          if (expectedVal) {
+            feedback.push(`${label} finger should be EXTENDED — try straightening it`);
+          } else {
+            feedback.push(`${label} finger should be CURLED — close it into your palm`);
+          }
+        }
       }
-    }
 
-    // Check fist ratio
-    if (expected.minFistRatio !== undefined) {
-      totalChecks++;
-      if (detected.fistRatio < expected.minFistRatio) {
-        feedback.push("Make a TIGHTER fist — curl your fingers more");
-      } else {
-        passedChecks++;
+      if (expected.minSpread !== undefined || expected.maxSpread !== undefined) {
+        totalChecks++;
+        if (expected.minSpread !== undefined && detected.fingerSpread < expected.minSpread) {
+          feedback.push("Spread your fingers MORE apart");
+        } else if (expected.maxSpread !== undefined && detected.fingerSpread > expected.maxSpread) {
+          feedback.push("Keep your fingers CLOSER together");
+        } else {
+          passedChecks++;
+        }
       }
-    }
 
-    const score = totalChecks > 0 ? Math.round((passedChecks / totalChecks) * 100) : 50;
-    const isCorrect = score >= 65 && wrongFingers <= 2;
+      if (expected.minFistRatio !== undefined) {
+        totalChecks++;
+        if (detected.fistRatio < expected.minFistRatio) {
+          feedback.push("Make a TIGHTER fist — curl your fingers more");
+        } else {
+          passedChecks++;
+        }
+      }
 
-    if (isCorrect) {
-      feedback.length = 0;
-      feedback.push(`Great job! You signed "${expected.word}" correctly! 🎉`);
-    } else if (feedback.length === 0) {
-      feedback.push("Close! Check the finger positions shown above.");
-      expected.feedbackTips.forEach((tip) => feedback.push(`💡 ${tip}`));
+      const score = totalChecks > 0 ? Math.round((passedChecks / totalChecks) * 100) : 50;
+      const isCorrect = score >= 65 && wrongFingers <= 2;
+
+      if (isCorrect) {
+        result = {
+          score,
+          isCorrect: true,
+          feedback: [`Great job! You signed "${expected.word}" correctly! 🎉`],
+        };
+      } else {
+        result = { score, isCorrect: false, feedback };
+        if (feedback.length === 0) {
+          result.feedback.push("Close! Check the finger positions shown above.");
+          expected.feedbackTips.forEach((tip) => result.feedback.push(`💡 ${tip}`));
+        }
+      }
     }
 
     // Get motion analysis
@@ -297,8 +435,8 @@ export default function QuizPage() {
 
     // Combine static + motion validation
     const motionResult = validateWithMotion(
-      score,
-      feedback,
+      result.score,
+      result.feedback,
       motionAnalysis,
       currentWord
     );
@@ -309,23 +447,23 @@ export default function QuizPage() {
       feedback: motionResult.feedback,
     });
 
+    const isCorrectFinal = motionResult.isCorrect;
+
     setQuiz((prev) => {
-      const newStreak = isCorrect ? prev.streak + 1 : 0;
-      const newScore = isCorrect
-        ? prev.score + (newStreak) * 10 + Math.max(0, 15 - prev.timeLeft)
+      const newStreak = isCorrectFinal ? prev.streak + 1 : 0;
+      const newScore = isCorrectFinal
+        ? prev.score + newStreak * 10 + Math.max(0, 15 - prev.timeLeft)
         : prev.score;
 
-      // Persist to localStorage
       saveQuizResult({
         word: currentWord,
-        correct: isCorrect,
-        score: isCorrect ? 10 + Math.max(0, 15 - prev.timeLeft) : 0,
+        correct: isCorrectFinal,
+        score: isCorrectFinal ? 10 + Math.max(0, 15 - prev.timeLeft) : 0,
         difficulty: difficulty,
         timestamp: Date.now(),
       });
-      if (isCorrect) {
-        const xp = 10 + Math.max(0, 15 - prev.timeLeft);
-        addXP(xp);
+      if (isCorrectFinal) {
+        addXP(10 + Math.max(0, 15 - prev.timeLeft));
       }
       if (newStreak > 0) {
         addStreak(newStreak);
@@ -334,25 +472,23 @@ export default function QuizPage() {
       return {
         ...prev,
         showResult: true,
-        lastCorrect: isCorrect,
+        lastCorrect: isCorrectFinal,
         currentIndex: prev.currentIndex + 1,
-        correct: isCorrect ? prev.correct + 1 : prev.correct,
+        correct: isCorrectFinal ? prev.correct + 1 : prev.correct,
         score: newScore,
         streak: newStreak,
-        bestStreak: isCorrect
-          ? Math.max(prev.bestStreak, newStreak)
-          : prev.bestStreak,
+        bestStreak: isCorrectFinal ? Math.max(prev.bestStreak, newStreak) : prev.bestStreak,
       };
     });
     if (timerRef.current) clearInterval(timerRef.current);
-  }, [currentAnalysis, handDetected, quiz.showResult, currentExpected]);
+  }, [currentAnalysis, handDetected, quiz.showResult, currentExpected, currentISLWord, language, currentWord, difficulty]);
 
   const speakWord = useCallback(() => {
     const u = new SpeechSynthesisUtterance(currentWord);
-    u.lang = "en-US";
+    u.lang = language === "isl" ? "hi-IN" : "en-US";
     u.rate = 0.8;
     window.speechSynthesis.speak(u);
-  }, [currentWord]);
+  }, [currentWord, language]);
 
   useEffect(() => {
     return () => {
@@ -361,24 +497,69 @@ export default function QuizPage() {
     };
   }, [stopCameraRaw]);
 
+  // Current hint
+  const currentHint = language === "isl"
+    ? ISL_QUIZ_WORDS.find((w) => w.word === currentWord)?.hint
+    : ASL_QUIZ_WORDS.find((w) => w.word === currentWord)?.hint;
+
+  const wordList = language === "isl" ? ISL_QUIZ_WORDS : ASL_QUIZ_WORDS;
+
   return (
     <div className="min-h-screen pt-24 pb-16">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center mx-auto mb-4 shadow-xl shadow-pink-500/25">
-            <Target className="w-8 h-8 text-white" />
+          <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${language === "isl" ? "from-orange-500 to-amber-600" : "from-pink-500 to-rose-600"} flex items-center justify-center mx-auto mb-4 shadow-xl ${language === "isl" ? "shadow-orange-500/25" : "shadow-pink-500/25"}`}>
+            {language === "isl" ? <Languages className="w-8 h-8 text-white" /> : <Target className="w-8 h-8 text-white" />}
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold mb-2">
-            Quiz <span className="bg-gradient-to-r from-pink-500 to-rose-600 bg-clip-text text-transparent">Challenge</span>
+            Quiz <span className={`bg-gradient-to-r ${language === "isl" ? "from-orange-500 to-amber-600" : "from-pink-500 to-rose-600"} bg-clip-text text-transparent`}>
+              {language === "isl" ? "ISL Challenge" : "Challenge"}
+            </span>
           </h1>
-          <p className="text-gray-500 dark:text-gray-400">See the word. Sign it. Get scored by AI in real-time.</p>
+          <p className="text-gray-500 dark:text-gray-400">
+            {language === "isl"
+              ? "Test your Indian Sign Language skills — sign the Hindi word, get scored by AI."
+              : "See the word. Sign it. Get scored by AI in real-time."}
+          </p>
         </motion.div>
 
-        {/* Difficulty Selector */}
+        {/* Language Selector — always visible */}
         {!quiz.isRunning && !gameOver && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-6 mb-8 text-center">
-            <h3 className="font-bold text-gray-900 dark:text-white mb-4">Select Difficulty</h3>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-6 mb-8">
+            <div className="text-center mb-6">
+              <h3 className="font-bold text-gray-900 dark:text-white mb-1">Choose Sign Language</h3>
+              <p className="text-sm text-gray-500">Select ASL (American) or ISL (Indian) for the quiz</p>
+            </div>
+            <div className="flex justify-center gap-4 mb-6">
+              <button
+                onClick={() => setLanguage("asl")}
+                className={`flex-1 max-w-xs p-4 rounded-xl border-2 transition-all ${
+                  language === "asl"
+                    ? "border-pink-500 bg-pink-50 dark:bg-pink-900/20 shadow-lg shadow-pink-500/10"
+                    : "border-gray-200 dark:border-gray-700 hover:border-pink-300"
+                }`}
+              >
+                <span className="text-3xl block mb-2">🤟</span>
+                <span className="font-bold text-gray-900 dark:text-white block">ASL</span>
+                <span className="text-xs text-gray-500">American Sign Language</span>
+              </button>
+              <button
+                onClick={() => setLanguage("isl")}
+                className={`flex-1 max-w-xs p-4 rounded-xl border-2 transition-all ${
+                  language === "isl"
+                    ? "border-orange-500 bg-orange-50 dark:bg-orange-900/20 shadow-lg shadow-orange-500/10"
+                    : "border-gray-200 dark:border-gray-700 hover:border-orange-300"
+                }`}
+              >
+                <span className="text-3xl block mb-2">🇮🇳</span>
+                <span className="font-bold text-gray-900 dark:text-white block">ISL</span>
+                <span className="text-xs text-gray-500">Indian Sign Language</span>
+              </button>
+            </div>
+
+            {/* Difficulty Selector */}
+            <h3 className="font-bold text-gray-900 dark:text-white mb-3 text-center">Select Difficulty</h3>
             <div className="flex justify-center gap-3 mb-6">
               {[
                 { level: 1, label: "Easy", desc: "Basic words", icon: "🌱" },
@@ -397,10 +578,20 @@ export default function QuizPage() {
                 </button>
               ))}
             </div>
-            <button onClick={startGame} className="btn-primary flex items-center gap-2 mx-auto">
-              <Zap className="w-5 h-5" />
-              Start Quiz (10 Questions)
-            </button>
+
+            <div className="text-center">
+              <button
+                onClick={startGame}
+                className={`px-8 py-3.5 rounded-xl font-bold text-white shadow-lg transition-all active:scale-95 flex items-center gap-2 mx-auto ${
+                  language === "isl"
+                    ? "bg-gradient-to-r from-orange-500 to-amber-600 shadow-orange-500/25"
+                    : "bg-gradient-to-r from-pink-500 to-rose-600 shadow-pink-500/25"
+                }`}
+              >
+                <Zap className="w-5 h-5" />
+                Start {language === "isl" ? "ISL" : "ASL"} Quiz (10 Questions)
+              </button>
+            </div>
           </motion.div>
         )}
 
@@ -408,7 +599,9 @@ export default function QuizPage() {
         {gameOver && (
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="glass-card p-8 text-center">
             <div className="text-6xl mb-4">{quiz.correct >= 8 ? "🏆" : quiz.correct >= 5 ? "⭐" : "💪"}</div>
-            <h2 className="text-3xl font-extrabold mb-2">Quiz Complete!</h2>
+            <h2 className="text-3xl font-extrabold mb-2">
+              {language === "isl" ? "ISL" : "ASL"} Quiz Complete!
+            </h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 my-6">
               {[
                 { label: "Score", value: quiz.score, icon: Trophy },
@@ -424,7 +617,14 @@ export default function QuizPage() {
               ))}
             </div>
             <div className="flex justify-center gap-3">
-              <button onClick={startGame} className="btn-primary flex items-center gap-2">
+              <button
+                onClick={startGame}
+                className={`px-6 py-3 rounded-xl font-bold text-white shadow-lg transition-all active:scale-95 flex items-center gap-2 ${
+                  language === "isl"
+                    ? "bg-gradient-to-r from-orange-500 to-amber-600 shadow-orange-500/25"
+                    : "bg-gradient-to-r from-pink-500 to-rose-600 shadow-pink-500/25"
+                }`}
+              >
                 <RotateCcw className="w-4 h-4" />
                 Play Again
               </button>
@@ -440,31 +640,31 @@ export default function QuizPage() {
               <div className="camera-feed bg-gray-900 relative mb-4">
                 <video ref={videoRef} className={`w-full ${cameraActive ? "hidden" : ""}`} autoPlay playsInline muted />
                 <canvas ref={canvasRef} className={`w-full ${cameraActive ? "" : "hidden"}`} />
-              {!cameraActive && cameraStatus === "idle" && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-900/90">
-                  <div className="text-center">
-                    <Camera className="w-12 h-12 text-gray-500 mx-auto mb-3" />
-                    <p className="text-gray-400 text-sm mb-3">Enable your camera for the quiz</p>
-                    <button onClick={startCameraRaw} className="btn-primary flex items-center gap-2 mx-auto">
-                      <Camera className="w-5 h-5" /> Enable Camera
-                    </button>
-                  </div>
-                </div>
-              )}
-              {cameraStatus === "loading" && <CameraLoadingSpinner message="Loading AI model for quiz..." />}
-              {cameraStatus === "error" || cameraStatus === "no-permission" ? (
-                <CameraError message={cameraError} onRetry={startCameraRaw} />
-              ) : null}
-              {cameraActive && (
-                <>
-                  <CameraStatusBadge status={cameraStatus} handDetected={handDetected} />
-                  {detectedGestureName && (
-                    <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm rounded-lg px-3 py-1.5 text-white text-sm">
-                      Detected: <span className="font-semibold text-emerald-400">{detectedGestureName.replace("_", " ")}</span>
+                {!cameraActive && cameraStatus === "idle" && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-900/90">
+                    <div className="text-center">
+                      <Camera className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+                      <p className="text-gray-400 text-sm mb-3">Enable your camera for the {language === "isl" ? "ISL" : "ASL"} quiz</p>
+                      <button onClick={startCameraRaw} className="btn-primary flex items-center gap-2 mx-auto">
+                        <Camera className="w-5 h-5" /> Enable Camera
+                      </button>
                     </div>
-                  )}
-                </>
-              )}
+                  </div>
+                )}
+                {cameraStatus === "loading" && <CameraLoadingSpinner message={`Loading AI model for ${language === "isl" ? "ISL" : "ASL"} quiz...`} />}
+                {cameraStatus === "error" || cameraStatus === "no-permission" ? (
+                  <CameraError message={cameraError} onRetry={startCameraRaw} />
+                ) : null}
+                {cameraActive && (
+                  <>
+                    <CameraStatusBadge status={cameraStatus} handDetected={handDetected} />
+                    {detectedGestureName && (
+                      <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm rounded-lg px-3 py-1.5 text-white text-sm">
+                        Detected: <span className="font-semibold text-emerald-400">{detectedGestureName.replace("_", " ")}</span>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
               {cameraActive && (
@@ -479,17 +679,21 @@ export default function QuizPage() {
               )}
 
               {/* Expected vs Detected */}
-              {currentExpected && handDetected && !quiz.showResult && (
+              {(currentExpected || currentISLWord) && handDetected && !quiz.showResult && (
                 <div className="mb-3 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
                   <div className="flex items-center justify-between text-xs">
                     <div>
                       <span className="text-gray-500">Expected: </span>
-                      <span className="font-semibold text-blue-600 dark:text-blue-400">{currentExpected.gestureName.replace("_", " ")}</span>
+                      <span className="font-semibold text-blue-600 dark:text-blue-400">
+                        {language === "isl" && currentISLWord
+                          ? `${currentISLWord.word} (${currentISLWord.hindi})`
+                          : currentExpected?.gestureName.replace("_", " ")}
+                      </span>
                     </div>
                     <div>
                       <span className="text-gray-500">Detected: </span>
                       <span className={`font-semibold ${
-                        detectedGestureName === currentExpected.gestureName
+                        detectedGestureName === (currentExpected?.gestureName || "")
                           ? "text-emerald-600"
                           : "text-amber-600"
                       }`}>
@@ -497,7 +701,11 @@ export default function QuizPage() {
                       </span>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">{currentExpected.description}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {language === "isl" && currentISLWord
+                      ? currentISLWord.description
+                      : currentExpected?.description}
+                  </p>
                 </div>
               )}
 
@@ -505,7 +713,11 @@ export default function QuizPage() {
               <button
                 onClick={submitAnswer}
                 disabled={!handDetected || quiz.showResult}
-                className="w-full py-3 bg-gradient-to-r from-pink-500 to-rose-600 text-white font-bold rounded-xl shadow-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
+                className={`w-full py-3 text-white font-bold rounded-xl shadow-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 ${
+                  language === "isl"
+                    ? "bg-gradient-to-r from-orange-500 to-amber-600 shadow-orange-500/25"
+                    : "bg-gradient-to-r from-pink-500 to-rose-600 shadow-pink-500/25"
+                }`}
               >
                 {quiz.showResult ? "Next Question..." : "Submit Answer"}
               </button>
@@ -526,11 +738,7 @@ export default function QuizPage() {
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-2xl">{feedbackResult.isCorrect ? "🎉" : "🤔"}</span>
                       <div>
-                        <p className={`font-bold ${
-                          feedbackResult.isCorrect
-                            ? "text-emerald-700 dark:text-emerald-300"
-                            : "text-red-700 dark:text-red-300"
-                        }`}>
+                        <p className={`font-bold ${feedbackResult.isCorrect ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"}`}>
                           {feedbackResult.isCorrect ? "Correct!" : "Not quite"}
                         </p>
                         <p className="text-xs text-gray-500">Score: {feedbackResult.score}%</p>
@@ -559,6 +767,9 @@ export default function QuizPage() {
                   <div className="flex items-center gap-2">
                     <Trophy className="w-5 h-5 text-amber-500" />
                     <span className="text-2xl font-extrabold text-gray-900 dark:text-white">{quiz.score}</span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${language === "isl" ? "bg-orange-100 text-orange-600 dark:bg-orange-900/30" : "bg-pink-100 text-pink-600 dark:bg-pink-900/30"}`}>
+                      {language === "isl" ? "🇮🇳 ISL" : "🤟 ASL"}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Timer className={`w-5 h-5 ${quiz.timeLeft <= 5 ? "text-red-500 animate-pulse" : "text-gray-400"}`} />
@@ -573,7 +784,7 @@ export default function QuizPage() {
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                   <div
-                    className="bg-gradient-to-r from-pink-500 to-rose-500 h-2 rounded-full transition-all duration-1000"
+                    className={`bg-gradient-to-r h-2 rounded-full transition-all duration-1000 ${language === "isl" ? "from-orange-500 to-amber-500" : "from-pink-500 to-rose-500"}`}
                     style={{ width: `${(quiz.currentIndex / quiz.totalQuestions) * 100}%` }}
                   />
                 </div>
@@ -601,6 +812,11 @@ export default function QuizPage() {
                       <p className="text-gray-500 mt-2">
                         The word was: <span className="font-bold">{currentWord}</span>
                       </p>
+                      {language === "isl" && currentISLWord && (
+                        <p className="text-sm text-gray-400 mt-1">
+                          Hindi: <span className="font-semibold">{currentISLWord.hindi}</span>
+                        </p>
+                      )}
                       {currentExpected && (
                         <p className="text-sm text-gray-400 mt-1">
                           Expected gesture: <span className="font-semibold">{currentExpected.gestureName.replace("_", " ")}</span>
@@ -609,29 +825,45 @@ export default function QuizPage() {
                     </div>
                   ) : (
                     <div>
-                      <p className="text-sm text-gray-400 mb-2 uppercase tracking-wider">Sign this word:</p>
-                      <h3 className="text-4xl font-extrabold text-gray-900 dark:text-white mb-3">{currentWord}</h3>
+                      <p className="text-sm text-gray-400 mb-2 uppercase tracking-wider">
+                        {language === "isl" ? "🇮🇳 Sign this ISL word:" : "Sign this word:"}
+                      </p>
+                      <h3 className="text-4xl font-extrabold text-gray-900 dark:text-white mb-1">{currentWord}</h3>
+                      {language === "isl" && currentISLWord && (
+                        <p className="text-lg text-orange-500 mb-2">{currentISLWord.hindi}</p>
+                      )}
                       <button onClick={speakWord} className="flex items-center gap-1 text-sm text-violet-500 hover:text-violet-600 mx-auto mb-4">
                         <Volume2 className="w-4 h-4" /> Hear pronunciation
                       </button>
 
                       {/* Expected gesture hint */}
-                      {currentExpected && (
+                      {(currentExpected || currentISLWord) && (
                         <div className="mb-4 p-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 text-left">
                           <p className="text-xs font-semibold text-violet-700 dark:text-violet-300 mb-1">How to sign:</p>
-                          <p className="text-sm text-gray-700 dark:text-gray-300">{currentExpected.description}</p>
-                          <p className="text-xs text-violet-500 mt-1">
-                            Target gesture: <span className="font-bold">{currentExpected.gestureName.replace("_", " ")}</span>
+                          <p className="text-sm text-gray-700 dark:text-gray-300">
+                            {language === "isl" && currentISLWord
+                              ? currentISLWord.description
+                              : currentExpected?.description}
                           </p>
+                          {currentExpected && (
+                            <p className="text-xs text-violet-500 mt-1">
+                              Target gesture: <span className="font-bold">{currentExpected.gestureName.replace("_", " ")}</span>
+                            </p>
+                          )}
+                          {language === "isl" && currentISLWord && (
+                            <p className="text-xs text-orange-500 mt-1">
+                              {currentISLWord.steps[0]}
+                            </p>
+                          )}
                         </div>
                       )}
 
                       <button onClick={() => setShowHint(!showHint)} className="text-xs text-gray-400 hover:text-gray-600 underline">
                         {showHint ? "Hide hint" : "Show hint"}
                       </button>
-                      {showHint && (
+                      {showHint && currentHint && (
                         <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-violet-500 mt-2 italic">
-                          {QUIZ_WORDS.find((w) => w.word === currentWord)?.hint}
+                          {currentHint}
                         </motion.p>
                       )}
                     </div>
