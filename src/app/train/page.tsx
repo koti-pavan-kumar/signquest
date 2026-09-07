@@ -254,18 +254,18 @@ export default function TrainPage() {
     <div className="min-h-screen pt-24 pb-16">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
+        <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mx-auto mb-4 shadow-xl shadow-blue-500/25">
-            <GraduationCap className="w-8 h-8 text-white" />
+            <GraduationCap className="w-8 h-8 text-white" aria-hidden="true" />
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold mb-2">
+          <h1 className="text-3xl sm:text-4xl font-extrabold mb-2 text-gray-900 dark:text-white">
             Word & Sentence{" "}
             <span className="bg-gradient-to-r from-blue-500 to-indigo-600 bg-clip-text text-transparent">Trainer</span>
           </h1>
           <p className="text-gray-500 dark:text-gray-400 max-w-xl mx-auto">
             Progress from simple words to full sentences. Our AI teacher checks your signs in real-time.
           </p>
-        </motion.div>
+        </div>
 
         {/* Session XP Banner */}
         {sessionXP > 0 && (

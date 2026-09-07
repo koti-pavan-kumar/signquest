@@ -97,7 +97,7 @@ export default function GamePage() {
   return (
     <div className="min-h-screen pt-24 pb-16">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
+        <div className="text-center mb-8">
           <div
             className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mx-auto mb-4 shadow-xl shadow-violet-500/25"
             role="img"
@@ -105,13 +105,13 @@ export default function GamePage() {
           >
             <Gamepad2 className="w-8 h-8 text-white" aria-hidden="true" />
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold mb-2">
+          <h1 className="text-3xl sm:text-4xl font-extrabold mb-2 text-gray-900 dark:text-white">
             Free <span className="bg-gradient-to-r from-violet-400 to-purple-600 bg-clip-text text-transparent">Play</span>
           </h1>
           <p className="text-gray-500 dark:text-gray-400">
             Open practice mode — sign anything and see real-time detection feedback.
           </p>
-        </motion.div>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Camera */}

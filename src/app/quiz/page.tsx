@@ -508,11 +508,11 @@ export default function QuizPage() {
     <div className="min-h-screen pt-24 pb-16">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
+        <div className="text-center mb-8">
           <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${language === "isl" ? "from-orange-500 to-amber-600" : "from-pink-500 to-rose-600"} flex items-center justify-center mx-auto mb-4 shadow-xl ${language === "isl" ? "shadow-orange-500/25" : "shadow-pink-500/25"}`}>
             {language === "isl" ? <Languages className="w-8 h-8 text-white" /> : <Target className="w-8 h-8 text-white" />}
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold mb-2">
+          <h1 className="text-3xl sm:text-4xl font-extrabold mb-2 text-gray-900 dark:text-white">
             Quiz <span className={`bg-gradient-to-r ${language === "isl" ? "from-orange-500 to-amber-600" : "from-pink-500 to-rose-600"} bg-clip-text text-transparent`}>
               {language === "isl" ? "ISL Challenge" : "Challenge"}
             </span>
@@ -522,7 +522,7 @@ export default function QuizPage() {
               ? "Test your Indian Sign Language skills — sign the Hindi word, get scored by AI."
               : "See the word. Sign it. Get scored by AI in real-time."}
           </p>
-        </motion.div>
+        </div>
 
         {/* Language Selector — always visible */}
         {!quiz.isRunning && !gameOver && (

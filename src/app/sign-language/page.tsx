@@ -96,8 +96,8 @@ export default function SignLanguagePage() {
   return (
     <div className="min-h-screen pt-24 pb-16">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
-          <h1 className="text-3xl sm:text-4xl font-extrabold mb-2">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl sm:text-4xl font-extrabold mb-2 text-gray-900 dark:text-white">
             Sign Language <span className="bg-gradient-to-r from-violet-400 to-purple-600 bg-clip-text text-transparent">Reference</span>
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mb-4">
@@ -107,7 +107,7 @@ export default function SignLanguagePage() {
             <Link href="/quiz" className="px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-600 text-white text-sm font-semibold rounded-lg">🎯 Take a Quiz</Link>
             <Link href="/game" className="px-4 py-2 bg-gradient-to-r from-violet-500 to-purple-600 text-white text-sm font-semibold rounded-lg">🎮 Free Play</Link>
           </div>
-        </motion.div>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Camera */}

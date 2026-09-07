@@ -61,15 +61,15 @@ export default function ScoresPage() {
     <div className="min-h-screen pt-24 pb-16">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-12">
+        <div className="text-center mb-12">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center mx-auto mb-4 shadow-xl shadow-amber-500/25">
-            <Trophy className="w-8 h-8 text-white" />
+            <Trophy className="w-8 h-8 text-white" aria-hidden="true" />
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold mb-2">
+          <h1 className="text-3xl sm:text-4xl font-extrabold mb-2 text-gray-900 dark:text-white">
             Score <span className="bg-gradient-to-r from-amber-500 to-orange-600 bg-clip-text text-transparent">Dashboard</span>
           </h1>
           <p className="text-gray-500 dark:text-gray-400">Track your real progress, streaks, and achievements.</p>
-        </motion.div>
+        </div>
 
         {/* Level & XP */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-6 mb-8">
