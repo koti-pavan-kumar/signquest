@@ -1,0 +1,136 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+:root {
+  --foreground: #0a0a0a;
+  --background: #ffffff;
+}
+
+.dark {
+  --foreground: #ededed;
+  --background: #0a0a0a;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+
+
+@layer components {
+  .gradient-text {
+    @apply bg-gradient-to-r from-brand-400 via-brand-500 to-brand-700 bg-clip-text text-transparent;
+  }
+
+  .gradient-bg {
+    @apply bg-gradient-to-br from-brand-500/20 via-brand-700/10 to-accent-500/20;
+  }
+
+  .glass-card {
+    @apply backdrop-blur-xl bg-white/10 dark:bg-white/5 border border-white/20 rounded-2xl shadow-xl;
+  }
+
+  .feature-card {
+    @apply p-6 rounded-2xl border border-gray-200 dark:border-gray-800 
+           bg-white dark:bg-gray-900/50 
+           hover:shadow-2xl hover:border-brand-300 dark:hover:border-brand-700
+           transition-all duration-300 hover:-translate-y-1;
+  }
+
+  .btn-primary {
+    @apply px-8 py-3.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold 
+           rounded-xl shadow-lg shadow-brand-500/25 
+           transition-all duration-200 hover:shadow-xl hover:shadow-brand-500/30
+           active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply px-8 py-3.5 border-2 border-brand-300 dark:border-brand-700 
+           text-brand-600 dark:text-brand-400 font-semibold 
+           rounded-xl hover:bg-brand-50 dark:hover:bg-brand-900/30 
+           transition-all duration-200 active:scale-95;
+  }
+
+  .section-padding {
+    @apply px-4 sm:px-6 lg:px-8 py-20 lg:py-32;
+  }
+
+  .container-custom {
+    @apply max-w-7xl mx-auto;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 
+           bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
+           focus:ring-2 focus:ring-brand-500 focus:border-transparent
+           transition-all duration-200 outline-none;
+  }
+
+  .tab-active {
+    @apply bg-brand-600 text-white shadow-lg shadow-brand-500/25;
+  }
+
+  .tab-inactive {
+    @apply bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 
+           hover:bg-gray-200 dark:hover:bg-gray-700;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .animate-in {
+    animation: slideUp 0.6s ease-out forwards;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-700 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-gray-600;
+}
+
+/* Camera feed styles */
+.camera-feed {
+  @apply w-full aspect-video rounded-2xl overflow-hidden border-2 border-gray-200 dark:border-gray-700;
+}
+
+.camera-feed video,
+.camera-feed canvas {
+  @apply w-full h-full object-cover;
+}
+
+/* Waveform animation for audio */
+.waveform {
+  @apply flex items-end gap-1 h-8;
+}
+
+.waveform-bar {
+  @apply w-1 bg-brand-500 rounded-full animate-pulse;
+}
+
+.waveform-bar:nth-child(1) { animation-delay: 0ms; }
+.waveform-bar:nth-child(2) { animation-delay: 100ms; }
+.waveform-bar:nth-child(3) { animation-delay: 200ms; }
+.waveform-bar:nth-child(4) { animation-delay: 300ms; }
+.waveform-bar:nth-child(5) { animation-delay: 400ms; }
