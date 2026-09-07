@@ -46,7 +46,6 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="min-h-screen bg-background antialiased">
-        {/* Skip to main content — WCAG 2.4.1 */}
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-violet-600 focus:text-white focus:rounded-lg focus:shadow-lg"
@@ -58,23 +57,6 @@ export default function RootLayout({
           {children}
         </main>
         <Footer />
-        {/* Clean up old service worker and caches */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations().then(function(regs) {
-                  regs.forEach(function(reg) { reg.unregister(); });
-                });
-              }
-              if ('caches' in window) {
-                caches.keys().then(function(names) {
-                  names.forEach(function(name) { caches.delete(name); });
-                });
-              }
-            `,
-          }}
-        />
       </body>
     </html>
   );

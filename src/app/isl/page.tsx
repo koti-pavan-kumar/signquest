@@ -365,12 +365,12 @@ export default function ISLPage() {
             <div className="camera-feed bg-gray-900 relative mb-4 rounded-xl overflow-hidden">
               <video
                 ref={videoRef}
-                className={`w-full ${cameraActive ? "hidden" : ""}`}
+                className="w-full"
                 autoPlay
                 playsInline
                 muted
               />
-              <canvas ref={canvasRef} className={`w-full ${cameraActive ? "" : "hidden"}`} />
+              <canvas ref={canvasRef} className={`w-full absolute inset-0 ${cameraActive && handDetected ? "" : "hidden"}`} />
 
               {/* Idle */}
               {!cameraActive && cameraStatus === "idle" && (

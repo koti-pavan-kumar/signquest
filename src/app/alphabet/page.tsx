@@ -372,18 +372,18 @@ export default function AlphabetPage() {
           {/* Camera + AI Teacher */}
           <div className="glass-card p-6">
             <div className="camera-feed bg-gray-900 relative mb-4">
-              {/* Video feed (hidden behind canvas when active) */}
+              {/* Video feed */}
               <video
                 ref={videoRef}
-                className={`w-full ${cameraActive ? "hidden" : ""}`}
+                className="w-full"
                 autoPlay
                 playsInline
                 muted
               />
-              {/* Canvas with landmark overlay */}
+              {/* Canvas overlay — only visible when hand detected */}
               <canvas
                 ref={canvasRef}
-                className={`w-full ${cameraActive ? "" : "hidden"}`}
+                className={`w-full absolute inset-0 ${cameraActive && handDetected ? "" : "hidden"}`}
               />
               {!cameraActive && cameraStatus === "idle" && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-900/90">

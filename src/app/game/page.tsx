@@ -123,7 +123,7 @@ export default function GamePage() {
             >
               <video
                 ref={videoRef}
-                className={`w-full ${isActive ? "hidden" : ""}`}
+                className="w-full"
                 autoPlay
                 playsInline
                 muted
@@ -131,7 +131,7 @@ export default function GamePage() {
               />
               <canvas
                 ref={canvasRef}
-                className={`w-full ${isActive ? "" : "hidden"}`}
+                className={`w-full absolute inset-0 ${isActive && handDetected ? "" : "hidden"}`}
                 aria-hidden="true"
               />
 

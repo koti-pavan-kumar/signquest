@@ -638,8 +638,8 @@ export default function QuizPage() {
             {/* Camera */}
             <div className="glass-card p-6">
               <div className="camera-feed bg-gray-900 relative mb-4">
-                <video ref={videoRef} className={`w-full ${cameraActive ? "hidden" : ""}`} autoPlay playsInline muted />
-                <canvas ref={canvasRef} className={`w-full ${cameraActive ? "" : "hidden"}`} />
+                <video ref={videoRef} className="w-full" autoPlay playsInline muted />
+                <canvas ref={canvasRef} className={`w-full absolute inset-0 ${cameraActive && handDetected ? "" : "hidden"}`} />
                 {!cameraActive && cameraStatus === "idle" && (
                   <div className="absolute inset-0 flex items-center justify-center bg-gray-900/90">
                     <div className="text-center">

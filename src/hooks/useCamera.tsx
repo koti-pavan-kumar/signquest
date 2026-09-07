@@ -25,6 +25,7 @@ export interface UseCameraReturn {
   errorMessage: string;
   handDetected: boolean;
   analysis: GestureAnalysis | null;
+  videoReady: boolean;
   startCamera: () => Promise<void>;
   stopCamera: () => void;
   videoRef: React.RefObject<HTMLVideoElement>;
@@ -62,6 +63,7 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
   const [errorMessage, setErrorMessage] = useState("");
   const [handDetected, setHandDetected] = useState(false);
   const [analysis, setAnalysis] = useState<GestureAnalysis | null>(null);
+  const [videoReady, setVideoReady] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -92,11 +94,17 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
       hands.onResults((results: any) => {
         if (canvasRef.current && videoRef.current) {
           const ctx = canvasRef.current.getContext("2d");
-          if (ctx) {
-            canvasRef.current.width = videoRef.current.videoWidth;
-            canvasRef.current.height = videoRef.current.videoHeight;
-            ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-            ctx.drawImage(videoRef.current, 0, 0);
+          const vw = videoRef.current.videoWidth;
+          const vh = videoRef.current.videoHeight;
+          if (ctx && vw > 0 && vh > 0) {
+            canvasRef.current.width = vw;
+            canvasRef.current.height = vh;
+            ctx.clearRect(0, 0, vw, vh);
+            try {
+              ctx.drawImage(videoRef.current, 0, 0, vw, vh);
+            } catch {
+              // Video frame not ready yet
+            }
 
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
               const landmarks = results.multiHandLandmarks[0];
@@ -212,6 +220,14 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
       console.log("[useCamera] Attaching stream to video element");
       video.srcObject = stream;
 
+      // Wait for video to have data
+      await new Promise<void>((resolve) => {
+        if (video.readyState >= 2) { resolve(); return; }
+        video.onloadeddata = () => resolve();
+        setTimeout(resolve, 3000); // fallback after 3s
+      });
+      setVideoReady(true);
+
       try {
         await video.play();
         console.log("[useCamera] Video playing successfully");
@@ -284,6 +300,7 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
     errorMessage,
     handDetected,
     analysis,
+    videoReady,
     startCamera,
     stopCamera,
     videoRef,
