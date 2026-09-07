@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -6,9 +6,12 @@ import { Footer } from "@/components/Footer";
 export const metadata: Metadata = {
   title: "SignQuest — Interactive Sign-Language Learning Game",
   description:
-    "Learn sign language through an interactive AI-powered game. Real-time hand gesture detection, quizzes, levels, and progress tracking.",
+    "Learn ASL and ISL (Indian Sign Language) through an interactive AI-powered game. Real-time hand gesture detection, motion tracking, quizzes, levels, and progress tracking.",
   keywords: [
     "sign language",
+    "ASL",
+    "ISL",
+    "Indian Sign Language",
     "accessibility",
     "AI",
     "game",
@@ -16,13 +19,29 @@ export const metadata: Metadata = {
     "hand gesture",
     "LUMINIX",
     "hackathon",
+    "Deaf community",
   ],
   openGraph: {
     title: "SignQuest — Interactive Sign-Language Learning Game",
     description:
-      "Learn sign language through an interactive AI-powered game.",
+      "Learn ASL and ISL through an interactive AI-powered game with real-time webcam gesture detection.",
     type: "website",
   },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "SignQuest",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0f0a1e" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+  ],
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -32,10 +51,35 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+      </head>
       <body className="min-h-screen bg-background antialiased">
+        {/* Skip to main content — WCAG 2.4.1 */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-violet-600 focus:text-white focus:rounded-lg focus:shadow-lg"
+        >
+          Skip to main content
+        </a>
         <Navbar />
-        <main>{children}</main>
+        <main id="main-content" tabIndex={-1}>
+          {children}
+        </main>
         <Footer />
+        {/* Service Worker Registration */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                  navigator.serviceWorker.register('/sw.js').catch(() => {});
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );

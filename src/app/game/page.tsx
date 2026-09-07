@@ -4,7 +4,13 @@ import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Gamepad2, RotateCcw, Hand, Volume2 } from "lucide-react";
 import { classifyGesture } from "@/lib/word-gesture-map";
-import { recordGesture } from "@/lib/persistence";
+import {
+  recordGesture,
+  getGestureHistory,
+  clearGestureHistory,
+  loadProgress,
+  GestureHistoryEntry,
+} from "@/lib/persistence";
 import {
   useCamera,
   CameraLoadingSpinner,
@@ -39,8 +45,17 @@ export default function GamePage() {
   } = useCamera();
 
   const [detectedGesture, setDetectedGesture] = useState("");
-  const [history, setHistory] = useState<{ gesture: string; time: number }[]>([]);
+  const [history, setHistory] = useState<GestureHistoryEntry[]>([]);
   const [totalDetected, setTotalDetected] = useState(0);
+
+  // Load persisted history on mount
+  useEffect(() => {
+    const saved = getGestureHistory();
+    if (saved.length > 0) {
+      setHistory(saved);
+      setTotalDetected(loadProgress().gesturesRecorded);
+    }
+  }, []);
 
   // Classify gesture from analysis
   useEffect(() => {
@@ -58,12 +73,19 @@ export default function GamePage() {
 
   const recordGestureAction = useCallback(() => {
     if (!detectedGesture) return;
-    setHistory((prev) => [{ gesture: detectedGesture, time: Date.now() }, ...prev.slice(0, 49)]);
+    const meaning = GESTURE_MAP[detectedGesture]?.meaning || detectedGesture;
+    recordGesture(detectedGesture, meaning);
+    const entry: GestureHistoryEntry = {
+      gesture: detectedGesture,
+      meaning,
+      timestamp: Date.now(),
+    };
+    setHistory((prev) => [entry, ...prev].slice(0, 100));
     setTotalDetected((p) => p + 1);
-    recordGesture();
   }, [detectedGesture]);
 
   const clearHistory = useCallback(() => {
+    clearGestureHistory();
     setHistory([]);
     setTotalDetected(0);
   }, []);
@@ -76,8 +98,12 @@ export default function GamePage() {
     <div className="min-h-screen pt-24 pb-16">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mx-auto mb-4 shadow-xl shadow-violet-500/25">
-            <Gamepad2 className="w-8 h-8 text-white" />
+          <div
+            className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mx-auto mb-4 shadow-xl shadow-violet-500/25"
+            role="img"
+            aria-label="Free Play mode icon"
+          >
+            <Gamepad2 className="w-8 h-8 text-white" aria-hidden="true" />
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold mb-2">
             Free <span className="bg-gradient-to-r from-violet-400 to-purple-600 bg-clip-text text-transparent">Play</span>
@@ -90,15 +116,30 @@ export default function GamePage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Camera */}
           <div className="lg:col-span-2 glass-card p-6">
-            <div className="camera-feed bg-gray-900 relative mb-4">
-              <video ref={videoRef} className={`w-full ${isActive ? "hidden" : ""}`} autoPlay playsInline muted />
-              <canvas ref={canvasRef} className={`w-full ${isActive ? "" : "hidden"}`} />
+            <div
+              className="camera-feed bg-gray-900 relative mb-4"
+              role="region"
+              aria-label="Camera feed for gesture detection"
+            >
+              <video
+                ref={videoRef}
+                className={`w-full ${isActive ? "hidden" : ""}`}
+                autoPlay
+                playsInline
+                muted
+                aria-label="Webcam video feed"
+              />
+              <canvas
+                ref={canvasRef}
+                className={`w-full ${isActive ? "" : "hidden"}`}
+                aria-hidden="true"
+              />
 
               {/* Idle state */}
               {!isActive && status === "idle" && (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center">
-                    <Hand className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                    <Hand className="w-16 h-16 text-gray-600 mx-auto mb-4" aria-hidden="true" />
                     <p className="text-gray-400 mb-4">Enable your camera to start practicing</p>
                     <StartCameraButton onClick={startCamera} />
                   </div>
@@ -118,16 +159,25 @@ export default function GamePage() {
                 <>
                   <CameraStatusBadge status={status} handDetected={handDetected} />
                   {detectedGesture && (
-                    <div className="absolute bottom-4 left-4 right-4 bg-black/60 backdrop-blur-sm rounded-xl p-4">
+                    <div
+                      className="absolute bottom-4 left-4 right-4 bg-black/60 backdrop-blur-sm rounded-xl p-4"
+                      role="status"
+                      aria-live="polite"
+                      aria-label={`Detected gesture: ${GESTURE_MAP[detectedGesture]?.meaning || "Unknown"}`}
+                    >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <span className="text-3xl">{GESTURE_MAP[detectedGesture]?.emoji || "❓"}</span>
+                          <span className="text-3xl" aria-hidden="true">{GESTURE_MAP[detectedGesture]?.emoji || "❓"}</span>
                           <div>
                             <p className="text-white font-bold">{GESTURE_MAP[detectedGesture]?.meaning || "Unknown"}</p>
                             <p className="text-gray-300 text-sm">Confidence: {((analysis?.confidence || 0) * 100).toFixed(0)}%</p>
                           </div>
                         </div>
-                        <button onClick={recordGestureAction} className="px-4 py-2 bg-violet-600 text-white text-sm font-bold rounded-lg hover:bg-violet-700">
+                        <button
+                          onClick={recordGestureAction}
+                          className="px-4 py-2 bg-violet-600 text-white text-sm font-bold rounded-lg hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2 focus:ring-offset-gray-900"
+                          aria-label={`Record ${GESTURE_MAP[detectedGesture]?.meaning || "gesture"}`}
+                        >
                           Record
                         </button>
                       </div>
@@ -138,20 +188,24 @@ export default function GamePage() {
             </div>
 
             {/* Controls */}
-            <div className="flex gap-2">
+            <div className="flex gap-2" role="toolbar" aria-label="Camera controls">
               {isActive ? (
                 <StopCameraButton onClick={stopCamera} />
               ) : status === "idle" ? (
                 <StartCameraButton onClick={startCamera} />
               ) : null}
-              <button onClick={clearHistory} className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800">
-                <RotateCcw className="w-4 h-4" /> Clear History
+              <button
+                onClick={clearHistory}
+                className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                aria-label="Clear gesture history"
+              >
+                <RotateCcw className="w-4 h-4" aria-hidden="true" /> Clear History
               </button>
             </div>
 
             {/* Error warning */}
             {isActive && errorMessage && (
-              <div className="mt-3 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+              <div className="mt-3 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800" role="alert">
                 <p className="text-xs text-amber-700 dark:text-amber-300">{errorMessage}</p>
               </div>
             )}
@@ -160,15 +214,15 @@ export default function GamePage() {
           {/* Side Panel */}
           <div className="space-y-6">
             {/* Stats */}
-            <div className="glass-card p-6">
+            <div className="glass-card p-6" aria-label="Session statistics">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Session Stats</h3>
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 text-center">
-                  <div className="text-2xl font-extrabold text-violet-600">{totalDetected}</div>
+                  <div className="text-2xl font-extrabold text-violet-600" aria-label={`${totalDetected} gestures recorded`}>{totalDetected}</div>
                   <div className="text-xs text-gray-500">Gestures Recorded</div>
                 </div>
                 <div className="p-3 rounded-xl bg-pink-50 dark:bg-pink-900/20 text-center">
-                  <div className="text-2xl font-extrabold text-pink-600">{history.length}</div>
+                  <div className="text-2xl font-extrabold text-pink-600" aria-label={`${history.length} in history`}>{history.length}</div>
                   <div className="text-xs text-gray-500">In History</div>
                 </div>
               </div>
@@ -177,21 +231,23 @@ export default function GamePage() {
             {/* Gesture Guide */}
             <div className="glass-card p-6">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-                <Volume2 className="w-4 h-4" />
+                <Volume2 className="w-4 h-4" aria-hidden="true" />
                 Gesture Guide
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-2" role="list" aria-label="Available gestures">
                 {Object.entries(GESTURE_MAP).map(([key, val]) => (
                   <div
                     key={key}
+                    role="listitem"
                     className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs ${
                       detectedGesture === key
                         ? "bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800"
                         : "bg-gray-50 dark:bg-gray-800/50"
                     }`}
+                    aria-label={`${val.emoji} ${key.replace("_", " ")}: ${val.meaning}`}
                   >
                     <span className="flex items-center gap-2 font-medium">
-                      <span>{val.emoji}</span>
+                      <span aria-hidden="true">{val.emoji}</span>
                       <span className="capitalize">{key.replace("_", " ")}</span>
                     </span>
                     <span className="text-gray-500">{val.meaning.split(" / ")[0]}</span>
@@ -203,14 +259,19 @@ export default function GamePage() {
             {/* Recent History */}
             <div className="glass-card p-6">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Recent Signs</h3>
-              <div className="space-y-1 max-h-48 overflow-y-auto">
+              <div
+                className="space-y-1 max-h-48 overflow-y-auto"
+                role="log"
+                aria-label="Gesture history"
+                aria-live="off"
+              >
                 {history.length === 0 ? (
                   <p className="text-xs text-gray-400 text-center py-4">No gestures recorded yet</p>
                 ) : (
                   history.map((h, i) => (
                     <div key={i} className="flex items-center justify-between px-2 py-1 text-xs">
-                      <span>{GESTURE_MAP[h.gesture]?.emoji} {GESTURE_MAP[h.gesture]?.meaning?.split(" / ")[0]}</span>
-                      <span className="text-gray-400">{new Date(h.time).toLocaleTimeString()}</span>
+                      <span>{GESTURE_MAP[h.gesture]?.emoji} {h.meaning?.split(" / ")[0]}</span>
+                      <span className="text-gray-400">{new Date(h.timestamp).toLocaleTimeString()}</span>
                     </div>
                   ))
                 )}

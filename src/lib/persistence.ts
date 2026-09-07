@@ -15,6 +15,12 @@ export interface QuizResult {
   timestamp: number;
 }
 
+export interface GestureHistoryEntry {
+  gesture: string;
+  meaning: string;
+  timestamp: number;
+}
+
 export interface PlayerProgress {
   // Alphabet
   learnedLetters: string[];
@@ -30,6 +36,7 @@ export interface PlayerProgress {
 
   // Free Play
   gesturesRecorded: number;
+  gestureHistory: GestureHistoryEntry[];
 
   // Aggregated stats
   totalScore: number;
@@ -52,6 +59,7 @@ const DEFAULT_PROGRESS: PlayerProgress = {
   practicedSentences: [],
   quizResults: [],
   gesturesRecorded: 0,
+  gestureHistory: [],
   totalScore: 0,
   totalXP: 0,
   level: 1,
@@ -187,11 +195,28 @@ export function addStreak(streak: number): PlayerProgress {
 
 // ===== Free Play =====
 
-export function recordGesture(): PlayerProgress {
+export function recordGesture(gesture?: string, meaning?: string): PlayerProgress {
   return update((p) => {
     p.gesturesRecorded++;
     p.totalGestures++;
+    if (gesture) {
+      p.gestureHistory = [
+        { gesture, meaning: meaning || gesture, timestamp: Date.now() },
+        ...p.gestureHistory,
+      ].slice(0, 100); // Keep last 100 gestures
+    }
     trackDay(p);
+    return p;
+  });
+}
+
+export function getGestureHistory(): GestureHistoryEntry[] {
+  return loadProgress().gestureHistory;
+}
+
+export function clearGestureHistory(): PlayerProgress {
+  return update((p) => {
+    p.gestureHistory = [];
     return p;
   });
 }
@@ -340,7 +365,9 @@ function getWeeklyData(p: PlayerProgress) {
     result.push({
       day: dayName,
       score: dayScore,
-      gestures: 0, // We don't track per-day gestures yet
+      gestures: p.gestureHistory.filter(
+      (g) => new Date(g.timestamp).toISOString().split("T")[0] === dateStr
+    ).length,
       quizzes: dayQuizzes.length,
     });
   }

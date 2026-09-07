@@ -62,7 +62,9 @@ The global deaf community numbers **70 million+**, with **268 million** hearing-
 ### Free Play (`/game`)
 - Open practice mode with real-time gesture classification
 - 8 gesture types detected: fist, open palm, peace, L, Y, and more
-- Session history with gesture recording
+- **Persistent gesture history** — saved to localStorage, survives page refreshes and browser restarts
+- Up to 100 gesture history entries stored with timestamps
+- Clear history button with localStorage cleanup
 - Landmark overlay visualization on camera feed
 
 ### Score Dashboard (`/scores`)
@@ -204,6 +206,7 @@ All user progress is saved to localStorage under the key `signquest_progress`:
 | bestStreak | Longest correct streak across all quizzes |
 | daysActive | Unique dates the user has played |
 | totalGestures | Total gestures recorded in Free Play |
+| gestureHistory | Last 100 gestures with timestamps (persists across sessions) |
 
 ---
 
@@ -238,6 +241,9 @@ All user progress is saved to localStorage under the key `signquest_progress`:
 | Speech | Web Speech API | Native browser TTS for English + Hindi audio |
 | Persistence | localStorage | Zero-cost, instant, no server needed |
 | Deployment | Vercel (Static) | Zero-cost hosting, CI/CD, global CDN |
+| PWA | Service Worker + Manifest | Offline support, installable on mobile/desktop |
+| Accessibility | WCAG 2.1 AA | Skip-to-content, ARIA labels, focus indicators, keyboard nav |
+| Testing | Vitest + Testing Library | 127 unit tests across 7 test files |
 
 ---
 
@@ -272,6 +278,22 @@ signquest/
       isl-illustrations.tsx   # ISL SVG hand diagrams (Devanagari + words)
       motion-tracking.ts      # Motion detection engine (velocity, trajectory)
       persistence.ts          # localStorage persistence layer
+  public/
+    manifest.json           # PWA manifest
+    sw.js                   # Service worker for offline support
+    icon-192.png            # PWA icon (192x192)
+    icon-512.png            # PWA icon (512x512)
+    icon.svg                # SVG source icon
+  src/__tests__/
+    gesture-detection.test.ts
+    asl-patterns.test.ts
+    isl-patterns.test.ts
+    word-gesture-map.test.ts
+    motion-tracking.test.ts
+    persistence.test.ts
+    freeplay-persistence.test.ts
+    setup.ts                # Test setup with localStorage mock
+  vitest.config.ts          # Vitest configuration
   package.json
   tailwind.config.ts
   tsconfig.json
@@ -342,6 +364,58 @@ Open http://localhost:3000
 7. **Gamification**: XP, levels, streaks, 10 achievements = sticky and engaging
 8. **Privacy-First**: All AI runs in the browser — zero data collection, zero server cost
 9. **Technical Depth**: Computer vision + motion tracking + gesture classification + dual-language support
+10. **Accessible**: WCAG 2.1 AA compliant — skip-to-content, ARIA labels, keyboard navigation, focus indicators
+11. **Offline-Ready**: PWA with service worker — works without internet after first visit
+12. **Tested**: 127 unit tests covering gesture detection, validation, persistence, and motion tracking
+
+---
+
+## Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+```
+
+**127 tests across 7 test files:**
+
+| File | Tests | Coverage |
+|---|---|---|
+| gesture-detection.test.ts | 7 | Finger states, spread, fist ratio, confidence |
+| asl-patterns.test.ts | 15 | 17 ASL letters, tolerance, scoring, feedback |
+| isl-patterns.test.ts | 23 | 34 Devanagari letters, 35 ISL words, categories |
+| word-gesture-map.test.ts | 20 | Word mapping, gesture classification, validation |
+| motion-tracking.test.ts | 26 | MotionTracker, signatures, combined validation |
+| persistence.test.ts | 28 | localStorage, XP, achievements, dashboard stats |
+| freeplay-persistence.test.ts | 8 | Gesture history save/load/clear/cap |
+
+---
+
+## PWA (Offline Support)
+
+SignQuest is a Progressive Web App that works offline:
+- **Service Worker** (`/sw.js`): Caches all pages and static assets
+- **Manifest** (`/manifest.json`): Installable on mobile and desktop
+- **Offline fallback**: Returns cached pages when offline
+- **Cache strategy**: Stale-while-revalidate for pages, cache-first for static assets
+
+To install on mobile: Open in Chrome → "Add to Home Screen"
+
+---
+
+## Accessibility (WCAG 2.1 AA)
+
+As an accessibility project, SignQuest follows WCAG guidelines:
+- **Skip to content**: Link hidden until focused (WCAG 2.4.1)
+- **ARIA labels**: All interactive elements have descriptive labels
+- **ARIA live regions**: Gesture detection results announced to screen readers
+- **Keyboard navigation**: All features accessible via keyboard
+- **Focus indicators**: Visible focus rings on all interactive elements
+- **Semantic HTML**: Proper heading hierarchy, landmarks, roles
+- **Color contrast**: Meets AA contrast ratios in both light and dark modes
 
 ---
 
