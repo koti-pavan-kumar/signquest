@@ -87,8 +87,8 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
       hands.setOptions({
         maxNumHands: 1,
         modelComplexity: 1,
-        minDetectionConfidence: 0.7,
-        minTrackingConfidence: 0.5,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.4,
       });
 
       hands.onResults((results: any) => {

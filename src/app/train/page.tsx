@@ -359,7 +359,7 @@ export default function TrainPage() {
             {cameraActive && (
               <button
                 onClick={checkMySign}
-                disabled={!handDetected || isChecking}
+                disabled={isChecking}
                 className={`w-full py-3.5 rounded-xl font-bold text-white shadow-lg transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
                   checkResult?.isCorrect
                     ? "bg-gradient-to-r from-emerald-500 to-green-600 shadow-emerald-500/25"
