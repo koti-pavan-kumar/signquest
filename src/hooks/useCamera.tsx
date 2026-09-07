@@ -16,33 +16,43 @@ export type CameraStatus =
   | "no-permission"; // User denied camera
 
 export interface UseCameraOptions {
-  /** Width of the video stream */
   width?: number;
-  /** Height of the video stream */
   height?: number;
-  /** Whether to auto-start detection loop when ready */
-  autoDetect?: boolean;
 }
 
 export interface UseCameraReturn {
-  /** Current camera status */
   status: CameraStatus;
-  /** Error message if status is "error" */
   errorMessage: string;
-  /** Whether a hand is currently detected */
   handDetected: boolean;
-  /** Current gesture analysis */
   analysis: GestureAnalysis | null;
-  /** Start the camera and MediaPipe */
   startCamera: () => Promise<void>;
-  /** Stop the camera and release resources */
   stopCamera: () => void;
-  /** Ref to attach to the <video> element */
   videoRef: React.RefObject<HTMLVideoElement>;
-  /** Ref to attach to the <canvas> element */
   canvasRef: React.RefObject<HTMLCanvasElement>;
-  /** Whether the camera is currently active */
   isActive: boolean;
+}
+
+/**
+ * Wait for a ref to become non-null (polls every 50ms, max 2s).
+ */
+function waitForRef<T>(ref: React.RefObject<T>, timeoutMs = 2000): Promise<T> {
+  return new Promise((resolve, reject) => {
+    if (ref.current) {
+      resolve(ref.current);
+      return;
+    }
+    const start = Date.now();
+    const check = () => {
+      if (ref.current) {
+        resolve(ref.current);
+      } else if (Date.now() - start > timeoutMs) {
+        reject(new Error("Video element not found in DOM"));
+      } else {
+        setTimeout(check, 50);
+      }
+    };
+    check();
+  });
 }
 
 export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
@@ -139,34 +149,37 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
       mpHandsRef.current = hands;
       return hands;
     } catch (err) {
-      console.error("Failed to load MediaPipe:", err);
+      console.error("[useCamera] Failed to load MediaPipe:", err);
       throw new Error("Failed to load AI model. Please check your internet connection and try again.");
     }
   }, []);
 
   // Start camera
   const startCamera = useCallback(async () => {
-    // Reset state
+    console.log("[useCamera] startCamera called");
     setErrorMessage("");
     setHandDetected(false);
     setAnalysis(null);
     setStatus("loading");
 
     try {
-      // Check if camera is available
+      // Check if camera API is available
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.error("[useCamera] getUserMedia not supported");
         setStatus("no-permission");
         setErrorMessage("Camera is not supported in this browser. Please use Chrome, Edge, or Firefox.");
         return;
       }
 
-      // Request camera permission
+      console.log("[useCamera] Requesting camera access...");
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "user", width, height },
         });
+        console.log("[useCamera] Camera stream obtained:", stream.getTracks().map(t => t.kind));
       } catch (err: any) {
+        console.error("[useCamera] getUserMedia failed:", err.name, err.message);
         setStatus("no-permission");
         if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
           setErrorMessage("Camera access was denied. Please allow camera access in your browser settings and try again.");
@@ -175,31 +188,63 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
         } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
           setErrorMessage("Camera is in use by another application. Please close other apps using the camera.");
         } else {
-          setErrorMessage("Could not access camera. Please check your camera settings.");
+          setErrorMessage(`Could not access camera: ${err.message}. Please check your camera settings.`);
         }
         return;
       }
 
       streamRef.current = stream;
 
+      // Wait for videoRef to be available in DOM (handles race condition)
+      console.log("[useCamera] Waiting for video element...");
+      let video: HTMLVideoElement;
+      try {
+        video = await waitForRef(videoRef, 3000);
+      } catch {
+        console.error("[useCamera] Video element not found after 3s");
+        setStatus("error");
+        setErrorMessage("Video element not found. Please refresh the page.");
+        stream.getTracks().forEach(t => t.stop());
+        return;
+      }
+
       // Attach stream to video element
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+      console.log("[useCamera] Attaching stream to video element");
+      video.srcObject = stream;
+
+      try {
+        await video.play();
+        console.log("[useCamera] Video playing successfully");
+      } catch (playErr: any) {
+        console.error("[useCamera] Video play failed:", playErr);
+        // Autoplay might be blocked — try muted
+        video.muted = true;
+        try {
+          await video.play();
+          console.log("[useCamera] Video playing (muted)");
+        } catch {
+          setStatus("error");
+          setErrorMessage("Could not play video. Your browser may be blocking autoplay. Try clicking the video or enabling autoplay.");
+          return;
+        }
       }
 
       // Load MediaPipe model
+      console.log("[useCamera] Loading MediaPipe model...");
       try {
         await initMediaPipe();
+        console.log("[useCamera] MediaPipe loaded successfully");
       } catch (err: any) {
-        // Camera works but AI model failed — still usable for basic features
+        console.warn("[useCamera] MediaPipe failed, camera still active:", err.message);
         setStatus("ready");
         setErrorMessage("AI model failed to load. Camera is active but gesture detection may not work. Check your internet connection.");
         return;
       }
 
       setStatus("ready");
+      console.log("[useCamera] Camera ready!");
     } catch (err: any) {
+      console.error("[useCamera] Unexpected error:", err);
       setStatus("error");
       setErrorMessage(err.message || "An unexpected error occurred while starting the camera.");
     }
@@ -207,6 +252,7 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
 
   // Stop camera
   const stopCamera = useCallback(() => {
+    console.log("[useCamera] stopCamera called");
     if (animRef.current) {
       cancelAnimationFrame(animRef.current);
       animRef.current = null;
@@ -248,9 +294,6 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
 
 // ===== Reusable UI Components =====
 
-/**
- * Loading spinner shown while MediaPipe model loads.
- */
 export function CameraLoadingSpinner({ message }: { message?: string }) {
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-gray-900/95 z-10">
@@ -263,9 +306,6 @@ export function CameraLoadingSpinner({ message }: { message?: string }) {
   );
 }
 
-/**
- * Error state shown when camera or model fails.
- */
 export function CameraError({
   message,
   onRetry,
@@ -292,9 +332,6 @@ export function CameraError({
   );
 }
 
-/**
- * Camera status badge shown on the video feed.
- */
 export function CameraStatusBadge({ status, handDetected }: { status: CameraStatus; handDetected: boolean }) {
   if (status === "idle" || status === "loading" || status === "error" || status === "no-permission") {
     return null;
@@ -323,9 +360,6 @@ export function CameraStatusBadge({ status, handDetected }: { status: CameraStat
   );
 }
 
-/**
- * Start camera button with icon.
- */
 export function StartCameraButton({
   onClick,
   label = "Start Camera",
@@ -344,9 +378,6 @@ export function StartCameraButton({
   );
 }
 
-/**
- * Stop camera button.
- */
 export function StopCameraButton({ onClick }: { onClick: () => void }) {
   return (
     <button
