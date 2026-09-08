@@ -302,10 +302,17 @@ export default function QuizPage() {
     }, 1000);
   }, [getRandomWord, language]);
 
+  // Auto-start camera when game starts (after DOM commit)
+  useEffect(() => {
+    if (quiz.isRunning && !gameOver && !cameraActive && cameraStatus === "idle") {
+      const timer = setTimeout(() => {
+        startCameraRaw();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [quiz.isRunning, gameOver, cameraActive, cameraStatus, startCameraRaw]);
+
   const startGame = useCallback(async () => {
-    // Small delay to let React render the video element first
-    await new Promise(r => setTimeout(r, 200));
-    if (!cameraActive) await startCameraRaw();
     setGameOver(false);
     setFeedbackResult(null);
     motionTrackerRef.current.reset();
@@ -709,13 +716,13 @@ export default function QuizPage() {
           </motion.div>
         )}
 
-        {/* Active Game */}
+        {/* Active Game — camera always in DOM when game is running */}
         {quiz.isRunning && !gameOver && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Camera */}
+            {/* Camera — always renders so videoRef is never null */}
             <div className="glass-card p-6">
               <div className="camera-feed bg-gray-900 relative mb-4">
-                <video ref={videoRef} className="w-full" autoPlay playsInline muted />
+                <video ref={videoRef} className="w-full" autoPlay playsInline muted style={{ minHeight: 240 }} />
                 <canvas ref={canvasRef} className={`w-full absolute inset-0 ${cameraActive && handDetected ? "" : "hidden"}`} />
                 {!cameraActive && cameraStatus === "idle" && (
                   <div className="absolute inset-0 flex items-center justify-center bg-gray-900/90">
