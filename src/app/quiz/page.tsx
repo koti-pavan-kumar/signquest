@@ -163,6 +163,7 @@ export default function QuizPage() {
   const [liveStatus, setLiveStatus] = useState<string[]>([]);
   const [autoScore, setAutoScore] = useState(0);
   const autoSubmitCooldownRef = useRef(false);
+  const submitAnswerRef = useRef<() => void>(() => {});
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const motionTrackerRef = useRef(new MotionTracker());
 
@@ -182,74 +183,86 @@ export default function QuizPage() {
     }
   }, [cameraAnalysis]);
 
+  // Stability tracking for auto-submit
+  const stableScoreRef = useRef(0);
+  const stableFramesRef = useRef(0);
+
   // ===== CONTINUOUS AUTO-DETECTION =====
-  // When timer is running, continuously check the gesture and auto-submit
+  // Runs on every camera analysis frame — checks gesture and auto-submits
   useEffect(() => {
-    if (!quiz.isRunning || quiz.showResult || gameOver || !cameraActive || !currentAnalysis || autoSubmitCooldownRef.current) return;
+    if (!quiz.isRunning || quiz.showResult || gameOver || !cameraActive) return;
+    if (!cameraAnalysis || !handDetected) {
+      setLiveStatus(["👀 Show your hand to the camera"]);
+      setAutoScore(0);
+      stableScoreRef.current = 0;
+      stableFramesRef.current = 0;
+      return;
+    }
+    if (autoSubmitCooldownRef.current) return;
 
-    // Evaluate gesture continuously
-    const evaluate = () => {
-      if (!currentAnalysis || !handDetected || quiz.showResult || autoSubmitCooldownRef.current) return;
+    // Evaluate gesture from current camera analysis
+    const newStatus: string[] = [];
+    let gestureScore = 0;
 
-      const newStatus: string[] = [];
-      let gestureScore = 0;
+    if (language === "isl" && currentISLWord) {
+      const f = cameraAnalysis.fingers;
+      const expected = currentISLWord.fingers;
+      let correct = 0;
+      let wrongFingers = 0;
+      const fingerNames: (keyof typeof f)[] = ["thumb", "index", "middle", "ring", "pinky"];
 
-      if (language === "isl" && currentISLWord) {
-        // ISL validation
-        const f = currentAnalysis.fingers;
-        const expected = currentISLWord.fingers;
-        let correct = 0;
-        let wrongFingers = 0;
-        const fingerNames: (keyof typeof f)[] = ["thumb", "index", "middle", "ring", "pinky"];
+      for (const fn of fingerNames) {
+        if (f[fn] === expected[fn]) correct++;
+        else wrongFingers++;
+      }
+      gestureScore = Math.round((correct / 5) * 100);
 
-        for (const fn of fingerNames) {
-          if (f[fn] === expected[fn]) correct++;
-          else wrongFingers++;
-        }
-        gestureScore = Math.round((correct / 5) * 100);
+      if (gestureScore >= 70) newStatus.push("✅ ISL gesture looks good!");
+      else if (wrongFingers > 0) newStatus.push(`Fix ${wrongFingers} finger${wrongFingers > 1 ? "s" : ""}`);
+    } else if (currentExpected) {
+      const gestureResult = validateWordGesture(
+        cameraAnalysis.fingers,
+        cameraAnalysis.fingerSpread,
+        cameraAnalysis.fistRatio,
+        currentExpected
+      );
+      gestureScore = gestureResult.score;
 
-        if (gestureScore >= 80) newStatus.push("✅ ISL gesture looks good!");
-        else if (wrongFingers > 0) newStatus.push(`Fix ${wrongFingers} finger${wrongFingers > 1 ? "s" : ""}`);
+      if (gestureScore >= 65) newStatus.push("✅ Gesture looks good!");
+      else {
+        const tips = gestureResult.feedback.filter((fb) => fb.includes("EXTENDED") || fb.includes("CURLED") || fb.includes("SPREAD")).slice(0, 1);
+        if (tips.length) newStatus.push("Fix: " + tips[0]);
+        else newStatus.push(`Score: ${gestureScore}% — adjust your hand`);
+      }
+    }
 
-      } else if (currentExpected) {
-        // ASL validation using word-gesture-map
-        const gestureResult = validateWordGesture(
-          currentAnalysis.fingers,
-          currentAnalysis.fingerSpread,
-          currentAnalysis.fistRatio,
-          currentExpected
-        );
-        gestureScore = gestureResult.score;
+    setLiveStatus(newStatus);
+    setAutoScore(gestureScore);
 
-        if (gestureScore >= 70) newStatus.push("✅ Gesture looks good!");
-        else {
-          const tips = gestureResult.feedback.filter((fb) => fb.includes("EXTENDED") || fb.includes("CURLED") || fb.includes("SPREAD")).slice(0, 1);
-          if (tips.length) newStatus.push(tips[0]);
-        }
+    // Stability check — require gesture above threshold for 2+ frames before auto-submit
+    if (gestureScore >= 65) {
+      if (gestureScore === stableScoreRef.current || Math.abs(gestureScore - stableScoreRef.current) < 10) {
+        stableFramesRef.current++;
+      } else {
+        stableFramesRef.current = 1;
+        stableScoreRef.current = gestureScore;
       }
 
-      // Add motion feedback
-      const motionAnalysis = motionTrackerRef.current.getAnalysis();
-      if (motionAnalysis.isMoving) {
-        newStatus.push(`Motion: ${motionAnalysis.motionType} ✓`);
-      }
-
-      setLiveStatus(newStatus);
-      setAutoScore(gestureScore);
-
-      // AUTO-SUBMIT when gesture is good enough
-      if (gestureScore >= 70 && !autoSubmitCooldownRef.current) {
+      // Auto-submit after 2 stable frames above threshold
+      if (stableFramesRef.current >= 2 && gestureScore >= 65 && !autoSubmitCooldownRef.current) {
         autoSubmitCooldownRef.current = true;
-        // Small delay for dramatic effect
+        stableFramesRef.current = 0;
+        stableScoreRef.current = 0;
         setTimeout(() => {
-          submitAnswer();
-          setTimeout(() => { autoSubmitCooldownRef.current = false; }, 2500);
-        }, 300);
+          submitAnswerRef.current();
+          setTimeout(() => { autoSubmitCooldownRef.current = false; }, 3000);
+        }, 400);
       }
-    };
-
-    evaluate();
-  }, [currentAnalysis, handDetected, quiz.isRunning, quiz.showResult, gameOver, cameraActive, language, currentExpected, currentISLWord]);
+    } else {
+      stableFramesRef.current = 0;
+      stableScoreRef.current = 0;
+    }
+  }, [cameraAnalysis, handDetected, quiz.isRunning, quiz.showResult, gameOver, cameraActive, language, currentExpected, currentISLWord]);
 
   // Get current quiz word list based on language
   const getQuizWordList = useCallback(() => {
@@ -566,6 +579,11 @@ export default function QuizPage() {
     });
     if (timerRef.current) clearInterval(timerRef.current);
   }, [currentAnalysis, handDetected, quiz.showResult, currentExpected, currentISLWord, language, currentWord, difficulty]);
+
+  // Keep ref in sync for auto-detection effect
+  useEffect(() => {
+    submitAnswerRef.current = submitAnswer;
+  }, [submitAnswer]);
 
   const speakWord = useCallback(() => {
     const u = new SpeechSynthesisUtterance(currentWord);
