@@ -250,10 +250,12 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
       streamRef.current = stream;
 
       // Wait for videoRef to be available in DOM (handles race condition)
+      // Small delay to let React finish rendering the video element
+      await new Promise(r => setTimeout(r, 100));
       console.log("[useCamera] Waiting for video element...");
       let video: HTMLVideoElement;
       try {
-        video = await waitForRef(videoRef, 3000);
+        video = await waitForRef(videoRef, 5000);
       } catch {
         console.error("[useCamera] Video element not found after 3s");
         setStatus("error");

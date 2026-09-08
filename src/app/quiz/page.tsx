@@ -303,6 +303,8 @@ export default function QuizPage() {
   }, [getRandomWord, language]);
 
   const startGame = useCallback(async () => {
+    // Small delay to let React render the video element first
+    await new Promise(r => setTimeout(r, 200));
     if (!cameraActive) await startCameraRaw();
     setGameOver(false);
     setFeedbackResult(null);
