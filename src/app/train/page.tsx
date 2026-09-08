@@ -55,18 +55,19 @@ export default function TrainPage() {
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>("basic");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [handDetected, setHandDetected] = useState(false);
-  const [practicedWords, setPracticedWords] = useState<Set<string>>(() => {
-    const saved = loadProgress().learnedWords;
-    return new Set(saved);
-  });
-  const [practicedSentences, setPracticedSentences] = useState<Set<string>>(() => {
-    const saved = loadProgress().practicedSentences;
-    return new Set(saved);
-  });
-  const [practicedAlphabet, setPracticedAlphabet] = useState<Set<string>>(() => {
-    const saved = loadProgress().learnedWords || [];
-    return new Set(saved.filter((w: string) => w.startsWith("alpha-")));
-  });
+  const [practicedWords, setPracticedWords] = useState<Set<string>>(new Set());
+  const [practicedSentences, setPracticedSentences] = useState<Set<string>>(new Set());
+  const [practicedAlphabet, setPracticedAlphabet] = useState<Set<string>>(new Set());
+  const [loaded, setLoaded] = useState(false);
+
+  // Load persisted progress after hydration to avoid SSR mismatch
+  useEffect(() => {
+    const progress = loadProgress();
+    setPracticedWords(new Set(progress.learnedWords || []));
+    setPracticedSentences(new Set(progress.practicedSentences || []));
+    setPracticedAlphabet(new Set((progress.learnedWords || []).filter((w: string) => w.startsWith("alpha-"))));
+    setLoaded(true);
+  }, []);
   const [showDetails, setShowDetails] = useState(true);
   const [sessionXP, setSessionXP] = useState(0);
   const [currentAnalysis, setCurrentAnalysis] = useState<GestureAnalysis | null>(null);

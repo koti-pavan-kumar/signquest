@@ -64,9 +64,12 @@ export default function ISLPage() {
     isCorrect: boolean;
     feedback: string[];
   } | null>(null);
-  const [learnedLetters, setLearnedLetters] = useState<Set<string>>(() => {
-    return new Set(loadProgress().learnedLetters);
-  });
+  const [learnedLetters, setLearnedLetters] = useState<Set<string>>(new Set());
+
+  // Load persisted progress after hydration
+  useEffect(() => {
+    setLearnedLetters(new Set(loadProgress().learnedLetters));
+  }, []);
   const [sessionXP, setSessionXP] = useState(0);
   const [currentAnalysis, setCurrentAnalysis] = useState<GestureAnalysis | null>(null);
 
