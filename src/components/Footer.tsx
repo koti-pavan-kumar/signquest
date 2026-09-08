@@ -30,7 +30,7 @@ export function Footer() {
             </h3>
             <ul className="space-y-2 text-sm text-gray-500 dark:text-gray-400">
               <li><Link href="/quiz" className="hover:text-violet-600 transition-colors">🎯 Quiz Challenge</Link></li>
-              <li><Link href="/alphabet" className="hover:text-violet-600 transition-colors">📖 Alphabet Explorer</Link></li>
+              <li><Link href="/alphabet" className="hover:text-violet-600 transition-colors">⌨️ Sign Keyboard</Link></li>
               <li><Link href="/game" className="hover:text-violet-600 transition-colors">🎮 Free Play</Link></li>
               <li><Link href="/scores" className="hover:text-violet-600 transition-colors">🏆 Score Dashboard</Link></li>
             </ul>

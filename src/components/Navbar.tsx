@@ -8,7 +8,7 @@ import { Menu, X, Gamepad2, Trophy, BookOpen, Target, Zap, GraduationCap, Langua
 const navLinks = [
   { href: "/train", label: "Train", icon: GraduationCap, ariaLabel: "Word and Sentence Trainer" },
   { href: "/isl", label: "ISL", icon: Languages, ariaLabel: "Indian Sign Language Explorer" },
-  { href: "/alphabet", label: "Learn", icon: BookOpen, ariaLabel: "Alphabet Explorer" },
+  { href: "/alphabet", label: "Keyboard", icon: BookOpen, ariaLabel: "Sign Language Keyboard" },
   { href: "/quiz", label: "Quiz", icon: Target, ariaLabel: "Quiz Challenge" },
   { href: "/game", label: "Play", icon: Gamepad2, ariaLabel: "Free Play practice mode" },
   { href: "/scores", label: "Scores", icon: Trophy, ariaLabel: "Score Dashboard" },

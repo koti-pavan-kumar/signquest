@@ -45,8 +45,8 @@ const gameModes = [
   },
   {
     icon: BookOpen,
-    title: "Alphabet Explorer",
-    description: "Learn each sign letter A-Z with animated guides, SVG illustrations, and live practice.",
+    title: "Sign Keyboard",
+    description: "Sign ASL letters with your hands — the AI types your message in real-time.",
     href: "/alphabet",
     color: "from-emerald-500 to-teal-600",
     badge: "Start Here",
