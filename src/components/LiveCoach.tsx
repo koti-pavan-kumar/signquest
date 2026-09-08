@@ -18,7 +18,9 @@ import {
 import { GestureAnalysis } from "@/lib/gesture-detection";
 import { MotionTracker, validateWithMotion, MotionAnalysis } from "@/lib/motion-tracking";
 import { WordEntry, SentenceEntry } from "@/lib/word-data";
+import { AlphabetEntry } from "@/lib/alphabet-data";
 import { getExpectedGesture, validateWordGesture } from "@/lib/word-gesture-map";
+import { checkLetter } from "@/lib/asl-patterns";
 import { markWordLearned, markSentencePracticed, addXP } from "@/lib/persistence";
 
 export type CoachMode = "recording" | "analyzing" | "result" | "idle";
@@ -31,8 +33,8 @@ export interface CoachResult {
 }
 
 interface LiveCoachProps {
-  /** The current word/sentence being practiced */
-  currentItem: WordEntry | SentenceEntry;
+  /** The current word/sentence/letter being practiced */
+  currentItem: WordEntry | SentenceEntry | AlphabetEntry;
   /** Current gesture analysis from the camera */
   analysis: GestureAnalysis | null;
   /** Whether hand is currently detected */
@@ -89,51 +91,82 @@ export function LiveCoach({
 
     analysisHistoryRef.current.push(analysis);
 
-    // Check handshape against the WORD's expected gesture (not first-letter)
-    const word = "word" in currentItem ? currentItem.word : "";
-    const expectedGesture = getExpectedGesture(word);
-
     const newFeedback: string[] = [];
 
-    if (expectedGesture) {
-      // Use word-gesture-map validation — checks against the actual sign, not a letter
-      const gestureResult = validateWordGesture(
-        analysis.fingers,
-        analysis.fingerSpread,
-        analysis.fistRatio,
-        expectedGesture
+    // Check if this is an ALPHABET letter entry
+    if ("letter" in currentItem && "description" in currentItem && "commonMistakes" in currentItem) {
+      // ALPHABET MODE — use checkLetter from asl-patterns
+      const alphabetEntry = currentItem as AlphabetEntry;
+      const letterResult = checkLetter(
+        {
+          fingers: analysis.fingers,
+          thumbDirection: "up",
+          fingerSpread: analysis.fingerSpread,
+          fistRatio: analysis.fistRatio,
+        },
+        alphabetEntry.letter
       );
-      setHandShapeScore(gestureResult.score);
+      setHandShapeScore(letterResult.score);
 
-      if (gestureResult.score >= 70) {
-        newFeedback.push("✅ Hand shape looks good!");
+      if (letterResult.isCorrect) {
+        newFeedback.push("✅ Hand shape looks correct!");
       } else {
-        // Show specific finger corrections from the gesture map
-        const fingerFeedback = gestureResult.feedback
-          .filter((f) => f.includes("EXTENDED") || f.includes("CURLED") || f.includes("SPREAD") || f.includes("finger"))
-          .slice(0, 2);
-        if (fingerFeedback.length > 0) {
-          newFeedback.push("Fix: " + fingerFeedback.join(", "));
+        const corrections = letterResult.feedback.slice(0, 2);
+        if (corrections.length > 0) {
+          newFeedback.push("Fix: " + corrections.join(", "));
         } else {
-          newFeedback.push(`Expected: ${expectedGesture.description}`);
+          newFeedback.push(`Try: ${alphabetEntry.description}`);
         }
       }
     } else {
-      // No gesture map — give generic guidance
-      const f = analysis.fingers;
-      const extended = [f.thumb, f.index, f.middle, f.ring, f.pinky].filter(Boolean).length;
-      if (extended >= 3) {
-        newFeedback.push("✅ Good hand visibility");
+      // WORD / SENTENCE MODE — use word-gesture-map
+      const word = "word" in currentItem ? currentItem.word : "";
+      const expectedGesture = getExpectedGesture(word);
+
+      if (expectedGesture) {
+        const gestureResult = validateWordGesture(
+          analysis.fingers,
+          analysis.fingerSpread,
+          analysis.fistRatio,
+          expectedGesture
+        );
+        setHandShapeScore(gestureResult.score);
+
+        if (gestureResult.score >= 70) {
+          newFeedback.push("✅ Hand shape looks good!");
+        } else {
+          const fingerFeedback = gestureResult.feedback
+            .filter((f) => f.includes("EXTENDED") || f.includes("CURLED") || f.includes("SPREAD") || f.includes("finger"))
+            .slice(0, 2);
+          if (fingerFeedback.length > 0) {
+            newFeedback.push("Fix: " + fingerFeedback.join(", "));
+          } else {
+            newFeedback.push(`Expected: ${expectedGesture.description}`);
+          }
+        }
       } else {
-        newFeedback.push("Show more fingers to the camera");
+        const f = analysis.fingers;
+        const extended = [f.thumb, f.index, f.middle, f.ring, f.pinky].filter(Boolean).length;
+        if (extended >= 3) {
+          newFeedback.push("✅ Good hand visibility");
+        } else {
+          newFeedback.push("Show more fingers to the camera");
+        }
       }
     }
 
-    // Check if hand is visible
-    if (!handDetected) {
-      newFeedback.push("👀 Show your hand to the camera");
-    } else if (handCount > 1) {
-      newFeedback.push(`🙌 ${handCount} hands detected — great!`);
+    // Motion feedback for words/sentences (letters are mostly static)
+    if (!("letter" in currentItem && "description" in currentItem)) {
+      if (!handDetected) {
+        newFeedback.push("👀 Show your hand to the camera");
+      } else if (handCount > 1) {
+        newFeedback.push(`🙌 ${handCount} hands detected — great!`);
+      }
+    } else {
+      // For letters, just check hand visibility
+      if (!handDetected) {
+        newFeedback.push("👀 Show your hand to the camera");
+      }
     }
 
     setLiveFeedback(newFeedback);
@@ -173,17 +206,65 @@ export function LiveCoach({
     // Small delay for dramatic effect
     setTimeout(() => {
       const motionAnalysis = motionTracker.current.getAnalysis();
-      const word = "word" in currentItem ? currentItem.word : "";
-      const expectedGesture = getExpectedGesture(word);
+      const lastAnalysis = analysisHistoryRef.current[analysisHistoryRef.current.length - 1];
 
       let staticScore = 0;
       let staticFeedback: string[] = [];
 
-      // Use the last analysis from the recording
-      const lastAnalysis = analysisHistoryRef.current[analysisHistoryRef.current.length - 1];
+      // ALPHABET MODE
+      if ("letter" in currentItem && "description" in currentItem && "commonMistakes" in currentItem) {
+        const alphabetEntry = currentItem as AlphabetEntry;
+        if (lastAnalysis) {
+          const letterResult = checkLetter(
+            {
+              fingers: lastAnalysis.fingers,
+              thumbDirection: "up",
+              fingerSpread: lastAnalysis.fingerSpread,
+              fistRatio: lastAnalysis.fistRatio,
+            },
+            alphabetEntry.letter
+          );
+          staticScore = letterResult.score;
+          staticFeedback = letterResult.feedback;
+        }
+
+        // Letters are mostly static — less weight on motion
+        const coachResult: CoachResult = {
+          score: staticScore,
+          isCorrect: staticScore >= 65,
+          feedback: staticFeedback,
+          motionType: "static",
+        };
+
+        setResult(coachResult);
+        setMode("result");
+        modeRef.current = "result";
+
+        if (coachResult.isCorrect) {
+          try {
+            const u = new SpeechSynthesisUtterance(`Letter ${alphabetEntry.letter}! Correct!`);
+            u.lang = "en-US";
+            u.rate = 0.9;
+            window.speechSynthesis.speak(u);
+          } catch {}
+          onCorrect();
+        } else {
+          try {
+            const feedbackText = coachResult.feedback[0] || `Try the letter ${alphabetEntry.letter} again.`;
+            const u = new SpeechSynthesisUtterance(feedbackText);
+            u.lang = "en-US";
+            u.rate = 0.9;
+            window.speechSynthesis.speak(u);
+          } catch {}
+        }
+        return;
+      }
+
+      // WORD / SENTENCE MODE
+      const word = "word" in currentItem ? currentItem.word : "";
+      const expectedGesture = getExpectedGesture(word);
 
       if (expectedGesture && lastAnalysis) {
-        // Validate against the WORD's expected gesture, not the first letter
         const gestureResult = validateWordGesture(
           lastAnalysis.fingers,
           lastAnalysis.fingerSpread,
@@ -193,7 +274,6 @@ export function LiveCoach({
         staticScore = gestureResult.score;
         staticFeedback = gestureResult.feedback;
       } else if (lastAnalysis) {
-        // Fallback scoring for words without gesture map
         const f = lastAnalysis.fingers;
         const extended = [f.thumb, f.index, f.middle, f.ring, f.pinky].filter(Boolean).length;
         staticScore = 30 + extended * 8;
@@ -436,7 +516,14 @@ export function LiveCoach({
                 <button
                   onClick={() => {
                     try {
-                      const word = "word" in currentItem ? currentItem.word : currentItem.sentence;
+                      let word = "";
+                      if ("letter" in currentItem && "commonMistakes" in currentItem) {
+                        word = `Letter ${(currentItem as AlphabetEntry).letter}`;
+                      } else if ("word" in currentItem) {
+                        word = currentItem.word;
+                      } else {
+                        word = currentItem.sentence;
+                      }
                       const u = new SpeechSynthesisUtterance(word);
                       u.lang = "en-US";
                       u.rate = 0.6;

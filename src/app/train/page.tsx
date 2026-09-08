@@ -22,6 +22,7 @@ import {
   ALL_WORDS,
   ALL_SENTENCES,
 } from "@/lib/word-data";
+import { AlphabetEntry, ALPHABET_BY_DIFFICULTY, ALL_ALPHABET } from "@/lib/alphabet-data";
 import { GestureIllustration, WordGestureIllustration } from "@/lib/gesture-illustrations";
 import {
   markWordLearned,
@@ -40,7 +41,7 @@ import {
 } from "@/hooks/useCamera";
 import { LiveCoach } from "@/components/LiveCoach";
 
-type TabType = "words" | "sentences";
+type TabType = "words" | "sentences" | "alphabet";
 
 const DIFFICULTY_CONFIG: Record<Difficulty, { label: string; color: string; icon: string; xpMultiplier: number }> = {
   basic: { label: "Basic", color: "from-green-500 to-emerald-600", icon: "🌱", xpMultiplier: 1 },
@@ -61,6 +62,10 @@ export default function TrainPage() {
   const [practicedSentences, setPracticedSentences] = useState<Set<string>>(() => {
     const saved = loadProgress().practicedSentences;
     return new Set(saved);
+  });
+  const [practicedAlphabet, setPracticedAlphabet] = useState<Set<string>>(() => {
+    const saved = loadProgress().learnedWords || [];
+    return new Set(saved.filter((w: string) => w.startsWith("alpha-")));
   });
   const [showDetails, setShowDetails] = useState(true);
   const [sessionXP, setSessionXP] = useState(0);
@@ -98,9 +103,16 @@ export default function TrainPage() {
   // Get current items
   const words = WORDS_BY_DIFFICULTY[selectedDifficulty];
   const sentences = SENTENCES_BY_DIFFICULTY[selectedDifficulty];
-  const currentItems = activeTab === "words" ? words : sentences;
+  const alphabet = ALPHABET_BY_DIFFICULTY[selectedDifficulty];
+  const currentItems: (WordEntry | SentenceEntry | AlphabetEntry)[] =
+    activeTab === "words" ? words : activeTab === "sentences" ? sentences : alphabet;
   const currentItem = currentItems[selectedIndex];
-  const practicedSet = activeTab === "words" ? practicedWords : practicedSentences;
+  const practicedSet =
+    activeTab === "words"
+      ? practicedWords
+      : activeTab === "sentences"
+      ? practicedSentences
+      : practicedAlphabet;
 
   // Reset on tab/difficulty change
   useEffect(() => {
@@ -111,7 +123,14 @@ export default function TrainPage() {
   // Speak
   const speak = useCallback(() => {
     if (!currentItem) return;
-    const text = "word" in currentItem ? currentItem.word : currentItem.sentence;
+    let text = "";
+    if ("letter" in currentItem && "commonMistakes" in currentItem) {
+      text = `Letter ${(currentItem as AlphabetEntry).letter}`;
+    } else if ("word" in currentItem) {
+      text = (currentItem as WordEntry).word;
+    } else {
+      text = (currentItem as SentenceEntry).sentence;
+    }
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "en-US";
     u.rate = 0.7;
@@ -132,8 +151,10 @@ export default function TrainPage() {
 
   const totalWords = ALL_WORDS.length;
   const totalSentences = ALL_SENTENCES.length;
+  const totalAlphabet = ALL_ALPHABET.length;
   const learnedWords = practicedWords.size;
   const learnedSentences = practicedSentences.size;
+  const learnedAlphabet = practicedAlphabet.size;
 
   return (
     <div className="min-h-screen pt-24 pb-16">
@@ -144,7 +165,7 @@ export default function TrainPage() {
             <GraduationCap className="w-8 h-8 text-white" aria-hidden="true" />
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold mb-2 text-gray-900 dark:text-white">
-            Word & Sentence{" "}
+            Alphabet, Word & Sentence{" "}
             <span className="bg-gradient-to-r from-blue-500 to-indigo-600 bg-clip-text text-transparent">Trainer</span>
           </h1>
           <p className="text-gray-500 dark:text-gray-400 max-w-xl mx-auto">
@@ -165,6 +186,7 @@ export default function TrainPage() {
             <div className="text-right text-sm text-gray-500">
               <p>{learnedWords}/{totalWords} words learned</p>
               <p>{learnedSentences}/{totalSentences} sentences practiced</p>
+              <p>{learnedAlphabet}/{totalAlphabet} letters learned</p>
             </div>
           </motion.div>
         )}
@@ -172,10 +194,13 @@ export default function TrainPage() {
         {/* Tabs + Difficulty */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
           <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
-            <button onClick={() => setActiveTab("words")} className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === "words" ? "bg-white dark:bg-gray-700 text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+            <button onClick={() => setActiveTab("alphabet")} className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === "alphabet" ? "bg-white dark:bg-gray-700 text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+              <span className="mr-1">🔤</span> Alphabet ({ALL_ALPHABET.length})
+            </button>
+            <button onClick={() => setActiveTab("words")} className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === "words" ? "bg-white dark:bg-gray-700 text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
               <BookOpen className="w-4 h-4 inline mr-1.5" /> Words ({ALL_WORDS.length})
             </button>
-            <button onClick={() => setActiveTab("sentences")} className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === "sentences" ? "bg-white dark:bg-gray-700 text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+            <button onClick={() => setActiveTab("sentences")} className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === "sentences" ? "bg-white dark:bg-gray-700 text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
               <Sparkles className="w-4 h-4 inline mr-1.5" /> Sentences ({ALL_SENTENCES.length})
             </button>
           </div>
@@ -251,7 +276,11 @@ export default function TrainPage() {
                 xpMultiplier={DIFFICULTY_CONFIG[selectedDifficulty].xpMultiplier}
                 onCorrect={() => {
                   const key = `${selectedDifficulty}-${selectedIndex}`;
-                  if ("word" in currentItem) {
+                  if ("letter" in currentItem && "commonMistakes" in currentItem) {
+                    // Alphabet letter
+                    setPracticedAlphabet((prev) => new Set(prev).add(key));
+                    markWordLearned(`alpha-${(currentItem as AlphabetEntry).letter}`);
+                  } else if ("word" in currentItem) {
                     setPracticedWords((prev) => new Set(prev).add(key));
                     markWordLearned((currentItem as WordEntry).word);
                   } else {
@@ -272,7 +301,22 @@ export default function TrainPage() {
               <motion.div key={`${activeTab}-${selectedDifficulty}-${selectedIndex}`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
                 {/* Word/Sentence Display */}
                 <div className="text-center mb-6">
-                  {"word" in currentItem ? (
+                  {"letter" in currentItem && "commonMistakes" in currentItem ? (
+                    /* ALPHABET LETTER */
+                    <>
+                      <div className="text-7xl font-extrabold bg-gradient-to-r from-blue-500 to-indigo-600 bg-clip-text text-transparent mb-2">
+                        {(currentItem as AlphabetEntry).letter}
+                      </div>
+                      <p className="text-sm text-gray-500 mb-2">ASL Letter</p>
+                      <div className="inline-block p-4 rounded-2xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 my-2">
+                        <GestureIllustration letter={(currentItem as AlphabetEntry).letter} size={120} />
+                      </div>
+                      <p className="text-xs text-violet-500 dark:text-violet-400 mt-2 italic">
+                        {(currentItem as AlphabetEntry).mnemonic}
+                      </p>
+                    </>
+                  ) : "word" in currentItem ? (
+                    /* WORD */
                     <>
                       <span className="text-5xl mb-2 block">{(currentItem as WordEntry).emoji}</span>
                       <h2 className="text-4xl font-extrabold bg-gradient-to-r from-blue-500 to-indigo-600 bg-clip-text text-transparent mb-2">
@@ -281,6 +325,7 @@ export default function TrainPage() {
                       <WordGestureIllustration word={(currentItem as WordEntry).word} size={140} className="my-4" />
                     </>
                   ) : (
+                    /* SENTENCE */
                     <>
                       <h2 className="text-2xl font-extrabold bg-gradient-to-r from-blue-500 to-indigo-600 bg-clip-text text-transparent mb-2">
                         &ldquo;{(currentItem as SentenceEntry).sentence}&rdquo;
@@ -295,8 +340,16 @@ export default function TrainPage() {
 
                 {/* Sign Description */}
                 <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 mb-4">
-                  <p className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-2">How to sign:</p>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{"signDescription" in currentItem ? currentItem.signDescription : ""}</p>
+                  <p className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-2">
+                    {"letter" in currentItem && "commonMistakes" in currentItem ? "How to form this letter:" : "How to sign:"}
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                    {"letter" in currentItem && "commonMistakes" in currentItem
+                      ? (currentItem as AlphabetEntry).description
+                      : "signDescription" in currentItem
+                      ? currentItem.signDescription
+                      : ""}
+                  </p>
                 </div>
 
                 {/* Finger-spelling */}
@@ -332,9 +385,21 @@ export default function TrainPage() {
                 </button>
                 {showDetails && "tips" in currentItem && (
                   <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 space-y-1 mb-4">
-                    {(currentItem as WordEntry | SentenceEntry).tips.map((tip, i) => (
+                    {(currentItem as WordEntry | SentenceEntry | AlphabetEntry).tips.map((tip, i) => (
                       <p key={i} className="text-xs text-gray-500 flex items-center gap-2">
                         <span className="text-blue-500">•</span> {tip}
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                {/* Common Mistakes (alphabet only) */}
+                {showDetails && "commonMistakes" in currentItem && (
+                  <div className="p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 space-y-1 mb-4">
+                    <p className="text-xs font-semibold text-red-600 dark:text-red-400 mb-1">⚠️ Common Mistakes:</p>
+                    {(currentItem as AlphabetEntry).commonMistakes.map((mistake, i) => (
+                      <p key={i} className="text-xs text-red-500 flex items-center gap-2">
+                        <span className="text-red-400">✗</span> {mistake}
                       </p>
                     ))}
                   </div>
@@ -374,6 +439,11 @@ export default function TrainPage() {
 
         {/* Bottom Stats */}
         <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="glass-card p-4 text-center">
+            <span className="text-lg">🔤</span>
+            <div className="text-2xl font-extrabold text-gray-900 dark:text-white">{learnedAlphabet}</div>
+            <div className="text-xs text-gray-500">Letters Learned</div>
+          </div>
           <div className="glass-card p-4 text-center">
             <BookOpen className="w-5 h-5 text-blue-500 mx-auto mb-2" />
             <div className="text-2xl font-extrabold text-gray-900 dark:text-white">{learnedWords}</div>
