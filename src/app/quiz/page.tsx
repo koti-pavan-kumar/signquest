@@ -372,19 +372,21 @@ export default function QuizPage() {
     }, 1000);
   }, [cameraActive, startCameraRaw, getRandomWord, language]);
 
-  // Auto-advance after showing result
+  // Auto-advance after showing result — always auto-advances, no button needed
   useEffect(() => {
-    if (quiz.showResult) {
+    if (!quiz.showResult) return;
+
+    // Show "Next question..." message after 1.5s, then advance at 2.5s
+    const advanceTimer = setTimeout(() => {
       if (quiz.currentIndex >= quiz.totalQuestions) {
-        setTimeout(() => {
-          setGameOver(true);
-          if (timerRef.current) clearInterval(timerRef.current);
-        }, 2000);
+        setGameOver(true);
+        if (timerRef.current) clearInterval(timerRef.current);
       } else {
-        const timeout = setTimeout(() => nextQuestion(), 2000);
-        return () => clearTimeout(timeout);
+        nextQuestion();
       }
-    }
+    }, 2500);
+
+    return () => clearTimeout(advanceTimer);
   }, [quiz.showResult, quiz.currentIndex, quiz.totalQuestions, nextQuestion]);
 
   // Submit answer with gesture validation (ASL or ISL)
@@ -888,6 +890,12 @@ export default function QuizPage() {
                         </li>
                       ))}
                     </ul>
+
+                    {/* Auto-advance countdown */}
+                    <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
+                      <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                      <span>Next question automatically...</span>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
